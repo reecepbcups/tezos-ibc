@@ -26,3 +26,7 @@ e2e-protocol:
 
 # Everything, one after the other. Stops at the first failure.
 e2e-all: test e2e e2e-recovery e2e-freeze e2e-keeper e2e-watcher e2e-protocol
+
+# Real Groth16 proofs via the Succinct network (needs .env), real gateway on a Sepolia fork.
+e2e-real:
+    e2e/real.sh

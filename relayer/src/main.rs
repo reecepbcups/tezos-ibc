@@ -66,6 +66,14 @@ fn env_req(k: &str) -> Result<String> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // sp1-sdk logs the network explorer link per proof request at info. RUST_LOG overrides.
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "sp1_sdk=info".into()),
+        )
+        .with_writer(std::io::stderr)
+        .init();
     let network = env("TEZOS_NETWORK", "sandbox");
     if network != env!("TEZOS_NETWORK_BUILT") {
         bail!(
