@@ -38,6 +38,12 @@ c transfer 0 from bootstrap1 to ibc_core --entrypoint bind_port --arg "(Pair \"f
 COMMITMENTS_BIG_MAP=$(./verify.sh "$CORE" "$ESCROW")
 
 c transfer 0 from bootstrap1 to fa2_nft --entrypoint mint --arg "(Pair $TOKEN_ID \"$ALICE\")" --burn-cap 1 >/dev/null
+# Alice must really own the token before it's bridged.
+LEDGER=$(c rpc get "/chains/main/blocks/head/context/contracts/$FA2/storage" | python3 -c "import json,sys; print(json.load(sys.stdin)['args'][1]['int'])")
+EXPR=$(c hash data "$TOKEN_ID" of type nat | sed -n 's/^Script-expression-ID-Hash: //p')
+OWNER=$(c rpc get "/chains/main/blocks/head/context/big_maps/$LEDGER/$EXPR" | python3 -c "import json,sys; print(json.load(sys.stdin)['string'])")
+[ "$OWNER" = "$ALICE" ] || { echo "fa2 #$TOKEN_ID owned by $OWNER, not alice, before the bridge" >&2; exit 1; }
+echo "fa2 #$TOKEN_ID owned by alice before the bridge"
 c transfer 0 from bootstrap1 to fa2_nft --entrypoint update_operators \
   --arg "{ Left (Pair \"$ALICE\" (Pair \"$ESCROW\" $TOKEN_ID)) }" --burn-cap 1 >/dev/null
 TIMEOUT=$(( $(date +%s) + 86400 ))

@@ -56,6 +56,7 @@ echo "anchor level $ANCHOR_LEVEL, big_map $BIG_MAP_ID, vkey $VKEY"
 echo "== eth deploy"
 eth/install-libs.sh
 if [ "$SP1_PROVER" = mock ]; then SCRIPT=Deploy; else SCRIPT=DeployMainnet; fi
+DEPLOY_BLOCK=$(cast block-number --rpc-url "$ETH_RPC")
 OUT=$(cd eth && forge script "script/Deploy.s.sol:$SCRIPT" --rpc-url "$ETH_RPC" --private-key "$ANVIL_KEY" --broadcast 2>&1) || { echo "$OUT"; exit 1; }
 CLIENT=$(echo "$OUT" | sed -n 's/.*CLIENT=\(0x[0-9a-fA-F]*\).*/\1/p' | head -1)
 NFT=$(echo "$OUT" | sed -n 's/.*NFT=\(0x[0-9a-fA-F]*\).*/\1/p' | head -1)
@@ -71,7 +72,15 @@ relayer run
 # Second packet sent after the anchor, so the client has to advance to a newer level to prove it.
 echo "== bridge #8 after anchor, relay again"
 ALICE=tz1KqTpEZ7Yob7QbPE4Hy4Wo8fHG8LhKxZSx
+# Value at a big_map key on head, or empty if absent.
+bm_get() { curl -sf "$TEZOS_RPC/chains/main/blocks/head/context/big_maps/$1/$(tz hash data "$2" of type "$3" | sed -n 's/^Script-expression-ID-Hash: //p')"; }
+fa2_owner() {
+  led=$(curl -sf "$TEZOS_RPC/chains/main/blocks/head/context/contracts/$FA2/storage" | python3 -c "import json,sys; print(json.load(sys.stdin)['args'][1]['int'])")
+  bm_get "$led" "$1" nat | python3 -c "import json,sys; print(json.load(sys.stdin)['string'])"
+}
+fail=0
 tz transfer 0 from bootstrap1 to "$FA2" --entrypoint mint --arg "(Pair 8 \"$ALICE\")" --burn-cap 1 >/dev/null
+[ "$(fa2_owner 8)" = "$ALICE" ] || { echo "FAIL: alice doesn't own fa2 #8 before the bridge"; fail=1; }
 tz transfer 0 from bootstrap1 to "$FA2" --entrypoint update_operators \
   --arg "{ Left (Pair \"$ALICE\" (Pair \"$ESCROW\" 8)) }" --burn-cap 1 >/dev/null
 tz transfer 0 from bootstrap1 to "$ESCROW" \
@@ -88,14 +97,27 @@ echo "client level $BEFORE -> $AFTER, eth ownerOf(8) = $OWNER8"
 
 echo "== checks"
 OWNER=$(cast call "$NFT" "ownerOf(uint256)(address)" "$TOKEN_ID" --rpc-url "$ETH_RPC")
-LEDGER=$(curl -sf "$TEZOS_RPC/chains/main/blocks/head/context/contracts/$FA2/storage" | python3 -c "import json,sys; print(json.load(sys.stdin)['args'][1]['int'])")
-EXPR=$(tz hash data "$TOKEN_ID" of type nat | sed -n 's/^Script-expression-ID-Hash: //p')
-FA2_OWNER=$(curl -sf "$TEZOS_RPC/chains/main/blocks/head/context/big_maps/$LEDGER/$EXPR" | python3 -c "import json,sys; print(json.load(sys.stdin)['string'])")
-echo "eth ownerOf($TOKEN_ID) = $OWNER, fa2 owner = $FA2_OWNER"
-fail=0
+FA2_OWNER=$(fa2_owner "$TOKEN_ID")
+FA2_OWNER8=$(fa2_owner 8)
+echo "eth ownerOf($TOKEN_ID) = $OWNER, fa2 owner = $FA2_OWNER, fa2 owner #8 = $FA2_OWNER8"
 [ "$(echo "$OWNER" | tr A-F a-f)" = "$(echo "$RECIPIENT" | tr A-F a-f)" ] || { echo "FAIL: erc721 owner"; fail=1; }
 [ "$FA2_OWNER" = "$ESCROW" ] || { echo "FAIL: escrow doesn't hold the FA2"; fail=1; }
+[ "$FA2_OWNER8" = "$ESCROW" ] || { echo "FAIL: escrow doesn't hold FA2 #8"; fail=1; }
 [ "$AFTER" -gt "$BEFORE" ] || { echo "FAIL: client didn't advance"; fail=1; }
 [ "$(echo "$OWNER8" | tr A-F a-f)" = "$(echo "$RECIPIENT" | tr A-F a-f)" ] || { echo "FAIL: erc721 #8 owner"; fail=1; }
+
+# Exactly two packets on Tezos and exactly two mints on Eth, no doubles or extras.
+SEQ_MAP=$(curl -sf "$TEZOS_RPC/chains/main/blocks/head/context/contracts/$CORE/storage" | python3 -c "import json,sys; print(json.load(sys.stdin)['args'][1]['int'])")
+NEXT_SEQ=$(bm_get "$SEQ_MAP" '"eth-0"' string | python3 -c "import json,sys; print(json.load(sys.stdin)['int'])")
+BAL=$(cast call "$NFT" "balanceOf(address)(uint256)" "$RECIPIENT" --rpc-url "$ETH_RPC")
+ZERO=0x0000000000000000000000000000000000000000000000000000000000000000
+MINTS=$(cast logs --json --from-block "$DEPLOY_BLOCK" --address "$NFT" --rpc-url "$ETH_RPC" \
+  "Transfer(address,address,uint256)" "$ZERO" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")
+R3=$(cast call "$NFT" "received(uint64)(bool)" 3 --rpc-url "$ETH_RPC")
+echo "tezos next seq $NEXT_SEQ, eth mints $MINTS, recipient balance $BAL, received(3) $R3"
+[ "$NEXT_SEQ" = 3 ] || { echo "FAIL: expected 2 packets on tezos, next seq $NEXT_SEQ"; fail=1; }
+[ "$MINTS" = 2 ] || { echo "FAIL: expected 2 mints on eth, got $MINTS"; fail=1; }
+[ "$BAL" = 2 ] || { echo "FAIL: recipient holds $BAL tokens, want 2"; fail=1; }
+[ "$R3" = false ] || { echo "FAIL: packet 3 marked received"; fail=1; }
 [ $fail = 0 ] && echo "PASS"
 exit $fail

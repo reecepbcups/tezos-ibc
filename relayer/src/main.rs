@@ -73,6 +73,9 @@ async fn main() -> Result<()> {
                 .unwrap_or_else(|_| "sp1_sdk=info".into()),
         )
         .with_writer(std::io::stderr)
+        .with_timer(tracing_subscriber::fmt::time::ChronoUtc::new(
+            "%Y-%m-%dT%H:%M:%S".into(),
+        ))
         .init();
     let network = env("TEZOS_NETWORK", "sandbox");
     if network != env!("TEZOS_NETWORK_BUILT") {
