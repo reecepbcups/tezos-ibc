@@ -19,7 +19,10 @@ const CFG: tezos_lc::Config = tezos_lc::Config {
 };
 
 pub fn main() {
-    let input: tezos_lc::Input = sp1_zkvm::io::read();
-    let out = tezos_lc::verify_encoded(&CFG, &input).expect("tezos update rejected");
+    // Deserializing the proofs isn't free, so it gets its own tracker.
+    let input: tezos_lc::Input =
+        tezos_consensus::track!("read_input", sp1_zkvm::io::read());
+    let out = tezos_consensus::track!("verify", tezos_lc::verify_encoded(&CFG, &input))
+        .expect("tezos update rejected");
     sp1_zkvm::io::commit_slice(&out);
 }

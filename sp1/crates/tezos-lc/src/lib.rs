@@ -14,7 +14,7 @@
 use alloy_sol_types::SolValue;
 use serde::{Deserialize, Serialize};
 use tezos_consensus::{
-    attested_predecessor, verify_quorum, Attestation, BlockHeader, Committee, Validator,
+    attested_predecessor, track, verify_quorum, Attestation, BlockHeader, Committee, Validator,
 };
 use tezos_merkle::{
     big_map_value_path, bytes_key_hash, commit_hash, decode_bytes32_leaf, verify_membership,
@@ -174,19 +174,34 @@ impl From<tezos_merkle::Error> for Error {
 
 /// Runs the full check and returns the values the program commits.
 pub fn verify(cfg: &Config, input: &Input) -> Result<PublicValues, Error> {
-    if commit_hash(&input.trusted_root, &input.trusted_info) != input.trusted_commit {
+    if track!(
+        "trusted_commit",
+        commit_hash(&input.trusted_root, &input.trusted_info)
+    ) != input.trusted_commit
+    {
         return Err(Error::TrustedCommitMismatch);
     }
     // The trusted state feeds the sampler, so its protocol defines what the cycle data means.
-    check_protocol(cfg, &input.trusted_root, &input.sampler_state_proof, "trusted")?;
+    track!(
+        "trusted_protocol",
+        check_protocol(
+            cfg,
+            &input.trusted_root,
+            &input.sampler_state_proof,
+            "trusted"
+        )
+    )?;
 
     let level = input.attested.level;
     // The activation level is written with the sampler state of its cycle and never removed,
     // so if the trusted state lacks it, it is past every cycle we can sample from here.
-    let activation = verify_optional(
-        &input.trusted_root,
-        &input.all_bakers_attest_proof,
-        &[b"data", b"all_bakers_attest_first_level"],
+    let activation = track!(
+        "all_bakers_attest",
+        verify_optional(
+            &input.trusted_root,
+            &input.all_bakers_attest_proof,
+            &[b"data", b"all_bakers_attest_first_level"],
+        )
     )?;
     if let Some(v) = activation {
         let first = activation_level(&v)?;
@@ -200,24 +215,36 @@ pub fn verify(cfg: &Config, input: &Input) -> Result<PublicValues, Error> {
         .era
         .level_info(level)
         .ok_or(Error::LevelOutsideEra(level))?;
-    let (state, seed) = verify_cycle(
-        &input.trusted_root,
-        &input.sampler_state_proof,
-        &input.seed_proof,
-        cycle,
+    let (state, seed) = track!(
+        "sampler_proofs",
+        verify_cycle(
+            &input.trusted_root,
+            &input.sampler_state_proof,
+            &input.seed_proof,
+            cycle,
+        )
     )?;
-    let committee = committee_at(&state, &seed, pos, cfg.committee_size)?;
+    let committee = track!(
+        "committee",
+        committee_at(&state, &seed, pos, cfg.committee_size)
+    )?;
 
     // Quorum on H(n+1)'s payload makes its predecessor, H(n), final.
-    verify_quorum(
-        &input.chain_id,
-        &input.attested,
-        &input.attestations,
-        &committee,
-        cfg.threshold,
+    track!(
+        "quorum",
+        verify_quorum(
+            &input.chain_id,
+            &input.attested,
+            &input.attestations,
+            &committee,
+            cfg.threshold,
+        )
     )?;
-    let pred = attested_predecessor(&input.attested, &input.attested_ops)?;
-    if input.header.hash() != pred {
+    let pred = track!(
+        "payload_hash",
+        attested_predecessor(&input.attested, &input.attested_ops)
+    )?;
+    if track!("header_hash", input.header.hash()) != pred {
         return Err(Error::PredecessorMismatch);
     }
     if input.header.level.checked_add(1) != Some(level) {
@@ -226,7 +253,7 @@ pub fn verify(cfg: &Config, input: &Input) -> Result<PublicValues, Error> {
     // n+1 was applied by the state after n's protocol. The QC doesn't cover H(n+1).context
     // or proto, so get there from H(n): the shell bumps proto exactly when a block's result
     // has a new protocol, so equal proto means states n-1 and n share it (checked below).
-    if input.parent.hash() != input.header.predecessor {
+    if track!("header_hash", input.parent.hash()) != input.header.predecessor {
         return Err(Error::ParentMismatch);
     }
     for (h, name) in [(&input.header, "n"), (&input.parent, "n-1")] {
@@ -245,17 +272,23 @@ pub fn verify(cfg: &Config, input: &Input) -> Result<PublicValues, Error> {
         return Err(Error::NotNewer);
     }
     let new_commit = input.header.context;
-    if commit_hash(&input.new_root, &input.new_info) != new_commit {
+    if track!("new_commit", commit_hash(&input.new_root, &input.new_info)) != new_commit {
         return Err(Error::NewCommitMismatch);
     }
     // Commitments are read with this state's storage layout.
-    check_protocol(cfg, &input.new_root, &input.new_state_proof, "new")?;
+    track!(
+        "new_protocol",
+        check_protocol(cfg, &input.new_root, &input.new_state_proof, "new")
+    )?;
 
     let mut commitments = Vec::with_capacity(input.commitments.len());
     for c in &input.commitments {
         let path = big_map_value_path(input.big_map_id, &bytes_key_hash(&c.path));
         let refs: Vec<&[u8]> = path.iter().map(Vec::as_slice).collect();
-        let leaf = verify_membership(&input.new_root, &c.proof, &refs)?;
+        let leaf = track!(
+            "commitment",
+            verify_membership(&input.new_root, &c.proof, &refs)
+        )?;
         commitments.push(Commitment {
             path: c.path.clone().into(),
             value: decode_bytes32_leaf(&leaf)?.into(),
@@ -272,7 +305,8 @@ pub fn verify(cfg: &Config, input: &Input) -> Result<PublicValues, Error> {
         newLevel: level_u64(new_level)?,
         newCommit: new_commit.into(),
         // H(n) carries new_commit, so its time dates the new state for the trusting period.
-        newTimestamp: u64::try_from(input.header.timestamp).map_err(|_| Error::NegativeTimestamp)?,
+        newTimestamp: u64::try_from(input.header.timestamp)
+            .map_err(|_| Error::NegativeTimestamp)?,
         commitments,
     })
 }
@@ -284,7 +318,12 @@ pub fn verify_encoded(cfg: &Config, input: &Input) -> Result<Vec<u8>, Error> {
 
 /// Requires the root `protocol` key (raw 32 byte hash, lib_context `current_protocol_key`)
 /// of the state `root` to be the pinned protocol.
-fn check_protocol(cfg: &Config, root: &Hash, proof: &Tree, state: &'static str) -> Result<(), Error> {
+fn check_protocol(
+    cfg: &Config,
+    root: &Hash,
+    proof: &Tree,
+    state: &'static str,
+) -> Result<(), Error> {
     match verify_value(root, proof, &[b"protocol"], &cfg.protocol) {
         Err(tezos_merkle::Error::ValueMismatch) => Err(Error::WrongProtocol(state)),
         r => Ok(r?),

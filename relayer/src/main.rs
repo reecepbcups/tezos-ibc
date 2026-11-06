@@ -5,9 +5,11 @@
 //! `relayer` (or `relayer run`) relays.
 //! `relayer keep` relays forever and keeps the client fresh, see `keep`.
 //! `relayer prove <trusted> <new> [seq..]` prints a proof without submitting, see `prove`.
+//! `relayer profile ..` executes one update and prints cycles per phase, see profile.rs.
 //! SP1_PROVER=mock|cpu|network picks the prover (default mock). Mock proofs are empty bytes and
 //! only pass the local MockVerifier; cpu and network make real Groth16 proofs.
 
+mod profile;
 mod tezos;
 
 use std::collections::HashSet;
@@ -106,7 +108,8 @@ async fn main() -> Result<()> {
             keep(&prover, &pk).await
         }
         "prove" => prove(&prover, &pk).await,
-        c => bail!("unknown command {c}, want run, keep, prove, vkey or anchor"),
+        "profile" => profile::profile(&prover).await,
+        c => bail!("unknown command {c}, want run, keep, prove, profile, vkey or anchor"),
     }
 }
 

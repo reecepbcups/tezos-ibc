@@ -19,3 +19,7 @@ sha2_09 = { package = "sha2", version = "0.9", default-features = false }
 # The SP1 bls12_381 patch builds hash_to_curve on digest 0.10.
 [target.'cfg(target_os = "zkvm")'.dependencies]
 sha2 = { workspace = true }
+
+[features]
+# Cycle tracker markers in the zkVM, see the track! macro.
+profiling = []

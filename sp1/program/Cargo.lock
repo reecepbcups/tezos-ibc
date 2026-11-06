@@ -1557,6 +1557,7 @@ name = "tezos-lc-program"
 version = "0.1.0"
 dependencies = [
  "sp1-zkvm",
+ "tezos-consensus",
  "tezos-lc",
 ]
 

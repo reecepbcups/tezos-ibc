@@ -15,6 +15,26 @@ pub use quorum::{attested_predecessor, verify_quorum, Committee, Validator};
 
 pub type Hash = [u8; 32];
 
+/// Wraps `$e` in an SP1 cycle tracker named `$name`, totals show up in the execution report.
+/// Only prints in a zkVM build with the `profiling` feature, so tests and normal runs stay quiet.
+#[macro_export]
+macro_rules! track {
+    ($name:literal, $e:expr) => {{
+        if $crate::PROFILING {
+            println!(concat!("cycle-tracker-report-start: ", $name));
+        }
+        let r = $e;
+        if $crate::PROFILING {
+            println!(concat!("cycle-tracker-report-end: ", $name));
+        }
+        r
+    }};
+}
+
+/// Evaluated here, not at the macro's call site, so callers don't need their own feature check.
+#[doc(hidden)]
+pub const PROFILING: bool = cfg!(all(target_os = "zkvm", feature = "profiling"));
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     Base58(String),

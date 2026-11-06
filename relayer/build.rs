@@ -13,6 +13,11 @@ fn main() {
         features.push("wrong-protocol-pin".into());
     }
 
+    // `relayer profile` needs the program's cycle tracker markers.
+    if std::env::var("CARGO_FEATURE_PROFILING").is_ok() {
+        features.push("profiling".into());
+    }
+
     // SP1_DOCKER=1 builds in Succinct's pinned image so the vkey doesn't depend on this machine.
     // Off by default since local mock runs don't care and docker is slow.
     let docker = std::env::var("SP1_DOCKER").is_ok_and(|v| v == "1");

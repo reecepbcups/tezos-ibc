@@ -9,12 +9,15 @@ edition = "2021"
 [dependencies]
 sp1-zkvm = "~6.8"
 tezos-lc = { path = "../crates/tezos-lc" }
+tezos-consensus = { path = "../crates/tezos-consensus" }
 
 [features]
 # Default is the sandbox chain config.
 mainnet = []
 # Test only, see e2e/protocol.sh.
 wrong-protocol-pin = []
+# Cycle tracker markers, see `relayer profile`. Changes the vkey, never use for real proofs.
+profiling = ["tezos-consensus/profiling"]
 
 [patch.crates-io]
 sha2-v0-9-9 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", package = "sha2", tag = "patch-sha2-0.9.9-sp1-6.0.0" }

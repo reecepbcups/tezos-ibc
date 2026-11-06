@@ -234,25 +234,25 @@ pub fn bls_mode_bytes(branch: &Hash, content: &ConsensusContent) -> Vec<u8> {
 pub fn verify_single(pk: &PublicKey, signed_bytes: &[u8], sig: &[u8]) -> Result<(), Error> {
     let digest = blake2b256(&[signed_bytes]);
     let ok = match pk {
-        PublicKey::Ed25519(k) => {
+        PublicKey::Ed25519(k) => crate::track!("sig_ed25519", {
             use ed25519_dalek::Verifier;
             let vk = ed25519_dalek::VerifyingKey::from_bytes(k).map_err(|_| Error::BadKey)?;
             let s = ed25519_dalek::Signature::from_slice(sig).map_err(|_| Error::BadSignature)?;
             vk.verify(&digest, &s).is_ok()
-        }
-        PublicKey::Secp256k1(k) => {
+        }),
+        PublicKey::Secp256k1(k) => crate::track!("sig_secp256k1", {
             use k256::ecdsa::signature::hazmat::PrehashVerifier;
             let vk = k256::ecdsa::VerifyingKey::from_sec1_bytes(k).map_err(|_| Error::BadKey)?;
             // k256 rejects high-s like libsecp256k1 does.
             let s = k256::ecdsa::Signature::from_slice(sig).map_err(|_| Error::BadSignature)?;
             vk.verify_prehash(&digest, &s).is_ok()
-        }
-        PublicKey::P256(k) => {
+        }),
+        PublicKey::P256(k) => crate::track!("sig_p256", {
             use p256::ecdsa::signature::hazmat::PrehashVerifier;
             let vk = p256::ecdsa::VerifyingKey::from_sec1_bytes(k).map_err(|_| Error::BadKey)?;
             let s = p256::ecdsa::Signature::from_slice(sig).map_err(|_| Error::BadSignature)?;
             vk.verify_prehash(&digest, &s).is_ok()
-        }
+        }),
         PublicKey::Bls(_) => return Err(Error::BlsNotAggregated),
     };
     if ok {
@@ -262,7 +262,7 @@ pub fn verify_single(pk: &PublicKey, signed_bytes: &[u8], sig: &[u8]) -> Result<
     }
 }
 
-pub(crate) mod bls {
+pub mod bls {
     use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve};
     use bls12_381::{
         multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, Scalar,
@@ -271,10 +271,47 @@ pub(crate) mod bls {
     use super::*;
 
     pub fn g1(bytes: &[u8]) -> Result<G1Projective, Error> {
+        g1_affine(bytes).map(G1Projective::from)
+    }
+
+    /// Compressed G1 point, with the on curve and subgroup checks `from_compressed` does.
+    pub fn g1_affine(bytes: &[u8]) -> Result<G1Affine, Error> {
         let arr: [u8; 48] = bytes.try_into().map_err(|_| Error::BadKey)?;
-        Option::<G1Affine>::from(G1Affine::from_compressed(&arr))
-            .map(G1Projective::from)
-            .ok_or(Error::BadKey)
+        Option::<G1Affine>::from(G1Affine::from_compressed(&arr)).ok_or(Error::BadKey)
+    }
+
+    /// Sum of `scalars[i] * points[i]`, with the doublings shared across points.
+    pub fn msm(points: &[G1Affine], scalars: &[Scalar]) -> G1Projective {
+        let bytes: Vec<[u8; 32]> = scalars.iter().map(Scalar::to_bytes).collect();
+        let mut acc = Acc::identity();
+        // Canonical scalars are below r < 2^255, so bit 255 is always clear.
+        for bit in (0..255).rev() {
+            acc = acc.double();
+            for (p, b) in points.iter().zip(&bytes) {
+                if (b[bit / 8] >> (bit % 8)) & 1 == 1 {
+                    acc = add(acc, p);
+                }
+            }
+        }
+        acc.into()
+    }
+
+    // In the zkVM the patched crate runs affine add/double on SP1's BLS12-381 precompiles,
+    // while `G1Projective * Scalar` is constant time double and add in plain field ops.
+    #[cfg(target_os = "zkvm")]
+    type Acc = G1Affine;
+    #[cfg(not(target_os = "zkvm"))]
+    type Acc = G1Projective;
+
+    /// add_affine handles P == Q and P == -Q, so the sum stays complete.
+    #[cfg(target_os = "zkvm")]
+    fn add(acc: Acc, p: &G1Affine) -> Acc {
+        acc.add_affine(p)
+    }
+
+    #[cfg(not(target_os = "zkvm"))]
+    fn add(acc: Acc, p: &G1Affine) -> Acc {
+        acc + p
     }
 
     /// Bls.Public_key.hash: blake2b-160 of the compressed key.

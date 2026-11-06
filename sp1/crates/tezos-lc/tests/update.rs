@@ -275,3 +275,15 @@ fn all_bakers_attest_parent_blinded() {
     *data = Tree::BlindedNode(data.hash().unwrap().1);
     assert_eq!(verify(&SANDBOX, &i).unwrap_err(), Error::Merkle(MerkleError::PathNotFound));
 }
+
+// Mainnet update dumped by `relayer profile` (attested 15703487, no commitments): 75 singles
+// plus a 63 member aggregate, every member with DAL content.
+#[test]
+fn accepts_mainnet_update() {
+    let p = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/mainnet_update.json");
+    let i: Input = serde_json::from_str(&std::fs::read_to_string(p).unwrap()).unwrap();
+    let pv = verify(&MAINNET, &i).unwrap();
+    assert_eq!(pv.newLevel, (i.attested.level - 2) as u64);
+    assert_eq!(pv.newCommit.0, i.header.context);
+    assert!(pv.commitments.is_empty());
+}

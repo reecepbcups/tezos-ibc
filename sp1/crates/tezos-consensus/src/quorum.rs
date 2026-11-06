@@ -76,12 +76,15 @@ pub fn verify_quorum(
                 content,
                 committee: members,
                 signature,
-            } => {
+            } => crate::track!("bls_aggregate", {
                 if members.is_empty() {
                     return Err(Error::EmptyAggregate);
                 }
                 let op = bls_mode_bytes(branch, content);
                 let mut agg = bls12_381::G1Projective::identity();
+                // Weighted companions are summed in one msm after the loop, it's much cheaper.
+                let mut comps = Vec::new();
+                let mut weights = Vec::new();
                 for m in members {
                     let v = count(m.slot)?;
                     let PublicKey::Bls(pk) = &v.consensus_pk else {
@@ -94,14 +97,16 @@ pub fn verify_quorum(
                             .companion_pk
                             .as_ref()
                             .ok_or(Error::MissingCompanion(m.slot))?;
-                        agg += bls::g1(comp)? * bls::dal_weight(pk, comp, &op, dal);
+                        comps.push(bls::g1_affine(comp)?);
+                        weights.push(bls::dal_weight(pk, comp, &op, dal));
                     }
                 }
+                agg += crate::track!("bls_dal_msm", bls::msm(&comps, &weights));
                 let mut msg = vec![0x13];
                 msg.extend_from_slice(chain_id);
                 msg.extend_from_slice(&op);
-                bls::verify(&agg, &msg, signature)?;
-            }
+                crate::track!("bls_pairing", bls::verify(&agg, &msg, signature))?;
+            }),
         }
     }
     if power < threshold {

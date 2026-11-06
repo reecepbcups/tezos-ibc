@@ -357,3 +357,114 @@ fn predecessor_link_rejects_tampering() {
         }
     }
 }
+
+/// Members of the first aggregate that carry DAL content.
+fn dal_slots(fx: &Fx) -> Vec<u16> {
+    let Attestation::Aggregate { committee, .. } = &fx.attestations[agg_idx(&fx.attestations)]
+    else {
+        unreachable!()
+    };
+    committee
+        .iter()
+        .filter(|m| m.dal.is_some())
+        .map(|m| m.slot)
+        .collect()
+}
+
+#[test]
+fn mainnet_dal_weight_and_companion_are_bound() {
+    let cases: &[(&str, Mutate)] = &[
+        // A different DAL bitset changes the member's weight.
+        ("wrong weight", |fx| {
+            let i = agg_idx(&fx.attestations);
+            let Attestation::Aggregate { committee, .. } = &mut fx.attestations[i] else {
+                unreachable!()
+            };
+            let m = committee.iter_mut().find(|m| m.dal.is_some()).unwrap();
+            m.dal.as_mut().unwrap().push(1);
+        }),
+        ("swapped companions", |fx| {
+            let s = dal_slots(fx);
+            let a = fx.committee[&s[0]].companion_pk.clone();
+            let b = fx.committee[&s[1]].companion_pk.clone();
+            assert_ne!(a, b);
+            fx.committee.get_mut(&s[0]).unwrap().companion_pk = b;
+            fx.committee.get_mut(&s[1]).unwrap().companion_pk = a;
+        }),
+        // Valid key, wrong member: companion set to the member's own consensus key.
+        ("companion is consensus key", |fx| {
+            let s = dal_slots(fx)[0];
+            let v = fx.committee.get_mut(&s).unwrap();
+            let PublicKey::Bls(k) = &v.consensus_pk else {
+                unreachable!()
+            };
+            v.companion_pk = Some(k.clone());
+        }),
+    ];
+    for name in ["mainnet_quorum", "mainnet_quorum_dal"] {
+        assert!(
+            dal_slots(&load(name)).len() >= 2,
+            "{name}: needs DAL members"
+        );
+        for (case, mutate) in cases {
+            let mut fx = load(name);
+            mutate(&mut fx);
+            let err = verify_quorum(
+                &fx.chain_id,
+                &fx.header_n1,
+                &fx.attestations,
+                &fx.committee,
+                fx.threshold,
+            )
+            .expect_err(&format!("{name}: {case} accepted"));
+            assert_eq!(err, Error::BadSignature, "{name}: {case}");
+        }
+    }
+}
+
+/// msm against the plain per point `P * s` sum the aggregate used before.
+#[test]
+fn msm_matches_naive_sum() {
+    use bls12_381::{G1Affine, G1Projective, Scalar};
+    use tezos_consensus::attestation::bls::msm;
+    use tezos_consensus::blake2b256;
+
+    let scalar = |i: u32| {
+        let mut wide = [0u8; 64];
+        wide[..32].copy_from_slice(&blake2b256(&[b"s", &i.to_be_bytes()]));
+        Scalar::from_bytes_wide(&wide)
+    };
+    let point = |i: u32| G1Affine::from(G1Projective::generator() * scalar(1000 + i));
+    let naive = |ps: &[G1Affine], ss: &[Scalar]| {
+        ps.iter()
+            .zip(ss)
+            .fold(G1Projective::identity(), |acc, (p, s)| acc + p * s)
+    };
+    let g = G1Affine::generator();
+    let random: (Vec<_>, Vec<_>) = (0..70).map(|i| (point(i), scalar(i))).unzip();
+    let cases: Vec<(&str, Vec<G1Affine>, Vec<Scalar>)> = vec![
+        ("empty", vec![], vec![]),
+        ("random 70", random.0, random.1),
+        (
+            "zero and one",
+            vec![g, point(1)],
+            vec![Scalar::zero(), Scalar::one()],
+        ),
+        ("max scalar", vec![g], vec![-Scalar::one()]),
+        // Partial sums hit P + P and P + (-P).
+        (
+            "same point",
+            vec![g, g, g],
+            vec![scalar(1), scalar(1), scalar(2)],
+        ),
+        ("cancels", vec![g, -g], vec![scalar(3), scalar(3)]),
+        (
+            "identity point",
+            vec![G1Affine::identity(), g],
+            vec![scalar(4), scalar(5)],
+        ),
+    ];
+    for (name, ps, ss) in cases {
+        assert_eq!(msm(&ps, &ss), naive(&ps, &ss), "{name}");
+    }
+}
