@@ -1,0 +1,14 @@
+[package]
+name = "tezos-merkle"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+blake2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+hex = { workspace = true }
+sha2 = { workspace = true }
+
+[dev-dependencies]
+bs58 = { workspace = true }

@@ -1,0 +1,14 @@
+[package]
+name = "tezos-sampler"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+blake2 = { workspace = true }
+tezos-merkle = { path = "../tezos-merkle" }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+hex = { workspace = true }
+bs58 = { workspace = true }
+sha2 = { workspace = true }

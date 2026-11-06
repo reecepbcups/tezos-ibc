@@ -1,0 +1,109 @@
+{ parameter
+    (pair (nat %token_id) (pair (bytes %eth_recipient) (nat %timeout_timestamp))) ;
+  storage (pair (address %core) (pair (address %fa2) (string %source_client))) ;
+  code { PUSH string "fa2-nft" ;
+         LAMBDA
+           bytes
+           bytes
+           { DUP ;
+             SIZE ;
+             PUSH nat 32 ;
+             DUP 2 ;
+             COMPARE ;
+             GT ;
+             IF { PUSH string "WORD_OVERFLOW" ; FAILWITH }
+                { SWAP ;
+                  PUSH bytes 0x0000000000000000000000000000000000000000000000000000000000000000 ;
+                  DIG 2 ;
+                  PUSH int 32 ;
+                  SUB ;
+                  ABS ;
+                  PUSH nat 0 ;
+                  SLICE ;
+                  IF_NONE { PUSH string "SLICE" ; FAILWITH } {} ;
+                  CONCAT } } ;
+         DIG 2 ;
+         UNPAIR ;
+         PUSH mutez 0 ;
+         AMOUNT ;
+         COMPARE ;
+         NEQ ;
+         IF { PUSH string "NO_TEZ" ; FAILWITH }
+            { PUSH nat 20 ;
+              DUP 2 ;
+              GET 3 ;
+              SIZE ;
+              COMPARE ;
+              NEQ ;
+              IF { PUSH string "BAD_RECIPIENT" ; FAILWITH }
+                 { PUSH bytes 0x0000000000000000000000000000000000000000 ;
+                   DUP 2 ;
+                   GET 3 ;
+                   COMPARE ;
+                   EQ ;
+                   IF { PUSH string "BAD_RECIPIENT" ; FAILWITH }
+                      { DUP 2 ;
+                        GET 3 ;
+                        CONTRACT %transfer
+                          (list (pair (address %from_)
+                                      (list %txs (pair (address %to_) (pair (nat %token_id) (nat %amount)))))) ;
+                        IF_NONE { PUSH string "BAD_FA2" ; FAILWITH } {} ;
+                        DUP 3 ;
+                        CAR ;
+                        CONTRACT %send_packet
+                          (pair (string %source_client)
+                                (pair (nat %timeout_timestamp)
+                                      (pair %payload
+                                         (string %source_port)
+                                         (pair (string %dest_port)
+                                               (pair (string %version) (pair (string %encoding) (bytes %value))))))) ;
+                        IF_NONE { PUSH string "BAD_CORE" ; FAILWITH } {} ;
+                        SWAP ;
+                        PUSH mutez 0 ;
+                        NIL (pair address (list (pair address (pair nat nat)))) ;
+                        NIL (pair address (pair nat nat)) ;
+                        PUSH nat 1 ;
+                        DUP 7 ;
+                        CAR ;
+                        SELF_ADDRESS ;
+                        PAIR 3 ;
+                        CONS ;
+                        SENDER ;
+                        PAIR ;
+                        CONS ;
+                        TRANSFER_TOKENS ;
+                        DUP 3 ;
+                        GET 3 ;
+                        DUP 6 ;
+                        SWAP ;
+                        EXEC ;
+                        DUP 4 ;
+                        CAR ;
+                        BYTES ;
+                        DIG 6 ;
+                        SWAP ;
+                        EXEC ;
+                        PAIR ;
+                        DUP 5 ;
+                        NIL operation ;
+                        DIG 4 ;
+                        PUSH mutez 0 ;
+                        DIG 4 ;
+                        UNPAIR ;
+                        CONCAT ;
+                        PUSH string "application/x-solidity-abi" ;
+                        PUSH string "fa2-nft-1" ;
+                        DIG 10 ;
+                        DUP ;
+                        PAIR 5 ;
+                        DIG 6 ;
+                        GET 4 ;
+                        DIG 7 ;
+                        GET 4 ;
+                        PAIR 3 ;
+                        TRANSFER_TOKENS ;
+                        CONS ;
+                        DIG 2 ;
+                        CONS ;
+                        PAIR } } } } }
+

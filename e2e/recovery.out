@@ -1,0 +1,33 @@
+== deploy
+Warning:
+  
+                 This is NOT the Tezos Mainnet.
+  
+           Do NOT use your fundraiser keys on this network.
+
+ports[fa2-nft] = KT1VtFAcAXpLtrt32dJWCrL8Yv7qmH6ypAus ok
+FAIL: packet commitment not in big_map 12
+No files changed, compilation skipped
+Traces:
+  [3200637] → new Deploy@0x5b73C5498c1E3b4dbA84de0F1833c4a029d90519
+    └─ ← [Return] 15875 bytes of code
+
+  [176669] Deploy::run()
+    ├─ [0] VM::startBroadcast()
+    │   └─ ← [Return]
+    ├─ [139487] → new MockVerifier@0xa513E6E4b8f2a923D98304ec87F64353C4D5C853
+    │   └─ ← [Return] 399 bytes of code
+    ├─ [0] VM::stopBroadcast()
+    │   └─ ← [Return]
+    ├─ [0] VM::envOr("ADMIN", 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266) [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::startBroadcast()
+    │   └─ ← [Return]
+    ├─ [0] VM::envBytes32("VKEY") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envBytes32("CHAIN_ID") [staticcall]
+    │   └─ ← [Revert] vm.envBytes32: environment variable "CHAIN_ID" not found
+    └─ ← [Revert] vm.envBytes32: environment variable "CHAIN_ID" not found
+
+
+Error: script failed: vm.envBytes32: environment variable "CHAIN_ID" not found

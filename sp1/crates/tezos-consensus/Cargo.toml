@@ -1,0 +1,21 @@
+[package]
+name = "tezos-consensus"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+blake2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+hex = { workspace = true }
+bs58 = { workspace = true, features = ["check"] }
+ed25519-dalek = { version = "2", default-features = false }
+k256 = { version = "0.13", default-features = false, features = ["ecdsa"] }
+p256 = { version = "0.13", default-features = false, features = ["ecdsa"] }
+bls12_381 = { version = "0.8", default-features = false, features = ["groups", "pairings", "alloc", "experimental"] }
+# bls12_381 0.8 hash_to_curve is built on digest 0.9.
+sha2_09 = { package = "sha2", version = "0.9", default-features = false }
+
+# The SP1 bls12_381 patch builds hash_to_curve on digest 0.10.
+[target.'cfg(target_os = "zkvm")'.dependencies]
+sha2 = { workspace = true }

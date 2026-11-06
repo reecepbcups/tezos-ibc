@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+exclude = ["program"]
+
+[workspace.dependencies]
+blake2 = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+hex = "0.4"
+sha2 = "0.10"
+bs58 = "0.5"
+alloy-sol-types = { version = "1", default-features = false }

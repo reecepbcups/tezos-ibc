@@ -1,0 +1,29 @@
+# reference clones, read only
+ibc-contracts/
+ref/
+
+# throwaway spike scripts
+scratch/
+
+# ligo binary is 160MB, grab it with the curl in tools/ligo.sh's comment
+tools/ligo
+
+# rust
+target/
+
+# foundry
+eth/out/
+eth/cache/
+eth/broadcast/
+# forge-std v1.16.2 + openzeppelin v5.4.0, see eth/install-libs.sh
+eth/lib/
+
+# generated per run
+tezos/deployed.env
+tezos/sandbox/params.json
+
+.env
+.DS_Store
+
+# e2e run output
+e2e/*.log

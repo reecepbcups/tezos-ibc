@@ -1,0 +1,211 @@
+{ parameter
+    (or (pair %send_packet
+           (string %source_client)
+           (pair (nat %timeout_timestamp)
+                 (pair %payload
+                    (string %source_port)
+                    (pair (string %dest_port)
+                          (pair (string %version) (pair (string %encoding) (bytes %value)))))))
+        (pair %bind_port string address)) ;
+  storage
+    (pair (map %counterparty string string)
+          (pair (big_map %next_sequence string nat)
+                (pair (big_map %commitments bytes bytes)
+                      (pair (big_map %ports string address) (address %deployer))))) ;
+  code { LAMBDA
+           nat
+           bytes
+           { BYTES ;
+             PUSH nat 8 ;
+             DUP 2 ;
+             SIZE ;
+             COMPARE ;
+             GT ;
+             IF { PUSH string "U64_OVERFLOW" ; FAILWITH }
+                { DUP ;
+                  PUSH bytes 0x0000000000000000 ;
+                  DIG 2 ;
+                  SIZE ;
+                  PUSH int 8 ;
+                  SUB ;
+                  ABS ;
+                  PUSH nat 0 ;
+                  SLICE ;
+                  IF_NONE { PUSH string "SLICE" ; FAILWITH } {} ;
+                  CONCAT } } ;
+         LAMBDA
+           string
+           bytes
+           { PACK ;
+             DUP ;
+             PUSH int 6 ;
+             DIG 2 ;
+             SIZE ;
+             SUB ;
+             ABS ;
+             PUSH nat 6 ;
+             SLICE ;
+             IF_NONE { PUSH string "SLICE" ; FAILWITH } {} } ;
+         DIG 2 ;
+         UNPAIR ;
+         IF_LEFT
+           { SENDER ;
+             SOME ;
+             DUP 3 ;
+             GET 7 ;
+             DUP 3 ;
+             GET 4 ;
+             CAR ;
+             GET ;
+             COMPARE ;
+             NEQ ;
+             IF { PUSH string "NOT_PORT_OWNER" ; FAILWITH }
+                { DUP 2 ;
+                  CAR ;
+                  DUP 2 ;
+                  CAR ;
+                  GET ;
+                  IF_NONE { PUSH string "UNKNOWN_CLIENT" ; FAILWITH } {} ;
+                  PUSH timestamp 0 ;
+                  NOW ;
+                  SUB ;
+                  ABS ;
+                  DUP 3 ;
+                  GET 3 ;
+                  COMPARE ;
+                  LE ;
+                  IF { PUSH string "TIMEOUT_IN_PAST" ; FAILWITH }
+                     { DUP 3 ;
+                       GET 3 ;
+                       DUP 3 ;
+                       CAR ;
+                       GET ;
+                       IF_NONE { PUSH nat 1 } {} ;
+                       NIL bytes ;
+                       DUP 2 ;
+                       DUP 8 ;
+                       SWAP ;
+                       EXEC ;
+                       CONS ;
+                       PUSH bytes 0x01 ;
+                       CONS ;
+                       DUP 4 ;
+                       CAR ;
+                       DUP 7 ;
+                       SWAP ;
+                       EXEC ;
+                       CONS ;
+                       CONCAT ;
+                       DUP 4 ;
+                       GET 4 ;
+                       NIL bytes ;
+                       NIL bytes ;
+                       DUP 3 ;
+                       GET 8 ;
+                       SHA256 ;
+                       CONS ;
+                       DUP 3 ;
+                       GET 7 ;
+                       DUP 10 ;
+                       SWAP ;
+                       EXEC ;
+                       SHA256 ;
+                       CONS ;
+                       DUP 3 ;
+                       GET 5 ;
+                       DUP 10 ;
+                       SWAP ;
+                       EXEC ;
+                       SHA256 ;
+                       CONS ;
+                       DUP 3 ;
+                       GET 3 ;
+                       DUP 10 ;
+                       SWAP ;
+                       EXEC ;
+                       SHA256 ;
+                       CONS ;
+                       DIG 2 ;
+                       CAR ;
+                       DUP 9 ;
+                       SWAP ;
+                       EXEC ;
+                       SHA256 ;
+                       CONS ;
+                       CONCAT ;
+                       SHA256 ;
+                       SHA256 ;
+                       CONS ;
+                       DUP 5 ;
+                       GET 3 ;
+                       DIG 8 ;
+                       SWAP ;
+                       EXEC ;
+                       SHA256 ;
+                       CONS ;
+                       DIG 3 ;
+                       DIG 6 ;
+                       SWAP ;
+                       EXEC ;
+                       SHA256 ;
+                       CONS ;
+                       PUSH bytes 0x02 ;
+                       CONS ;
+                       CONCAT ;
+                       SHA256 ;
+                       DUP ;
+                       DUP 4 ;
+                       DUP 6 ;
+                       CAR ;
+                       PAIR 3 ;
+                       EMIT %send_packet (pair string (pair nat bytes)) ;
+                       DUP 6 ;
+                       DUP 7 ;
+                       GET 3 ;
+                       PUSH nat 1 ;
+                       DIG 6 ;
+                       ADD ;
+                       SOME ;
+                       DIG 6 ;
+                       CAR ;
+                       UPDATE ;
+                       UPDATE 3 ;
+                       DIG 4 ;
+                       GET 5 ;
+                       DIG 3 ;
+                       SOME ;
+                       DIG 4 ;
+                       UPDATE ;
+                       UPDATE 5 ;
+                       NIL operation ;
+                       DIG 2 ;
+                       CONS ;
+                       PAIR } } }
+           { DIG 2 ;
+             DROP ;
+             DIG 2 ;
+             DROP ;
+             DUP 2 ;
+             GET 8 ;
+             SENDER ;
+             COMPARE ;
+             NEQ ;
+             IF { PUSH string "NOT_DEPLOYER" ; FAILWITH }
+                { UNPAIR ;
+                  DUP 3 ;
+                  GET 7 ;
+                  DUP 2 ;
+                  MEM ;
+                  IF { PUSH string "PORT_TAKEN" ; FAILWITH }
+                     { DIG 2 ;
+                       DUP ;
+                       GET 7 ;
+                       DIG 3 ;
+                       SOME ;
+                       DIG 3 ;
+                       UPDATE ;
+                       UPDATE 7 ;
+                       NIL operation ;
+                       PAIR } } } } ;
+  view "commitment_at" bytes (option bytes) { UNPAIR ; SWAP ; GET 5 ; SWAP ; GET } }
+

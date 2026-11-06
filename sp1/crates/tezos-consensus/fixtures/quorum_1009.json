@@ -1,0 +1,308 @@
+{
+ "chain_id": "NetXdQprcVkpaWU",
+ "header_n": {
+  "protocol": "PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY",
+  "chain_id": "NetXdQprcVkpaWU",
+  "hash": "BKwin1CxuJVX7LZDtV2KGfbkqJ2viVJJu1WF6AxR4Us8j3nsAze",
+  "level": 1009,
+  "proto": 1,
+  "predecessor": "BLwNfGjmQ6Q5fxUFQYocnACa833JsWGBW7iVXPmZDxqMNHaCAYj",
+  "timestamp": "2026-11-06T19:37:06Z",
+  "validation_pass": 4,
+  "operations_hash": "LLoZjxeT638n5HYMTKzfvJxsqMkmzjTubY1t45GtvoiES8RjhV4KA",
+  "fitness": [
+   "02",
+   "000003f1",
+   "",
+   "ffffffff",
+   "00000000"
+  ],
+  "context": "CoWUyCHvwtRTrrgnwZs98eDbxqVwvsZkEChKYsjMrjxXfqfroQ8r",
+  "payload_hash": "vh2Y1Wc29LAUXXg9Y3V5puQVu2t9G5qGE657jciZceJaPGVePa7m",
+  "payload_round": 0,
+  "proof_of_work_nonce": "e5d8a6b808000000",
+  "liquidity_baking_toggle_vote": "pass",
+  "signature": "BLsigBHTDPKDgCt5GNtE9A3wNJxRwQyLNsFQxSVmqnqnVW856cnYYYFE862Qwerw6XFgBrnfdxw9YPSPkpPdPbfKNLneTZJdACeW8ZRjd28eY9kMbBRDR4ZeETEvX72e3SqwZwx3SYqWS4"
+ },
+ "header_n1": {
+  "protocol": "PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY",
+  "chain_id": "NetXdQprcVkpaWU",
+  "hash": "BLNKKcuhS5XbN3Rr8X1rSfvthQDqS5mRZYpyM8URNzVKu8FBpna",
+  "level": 1010,
+  "proto": 1,
+  "predecessor": "BKwin1CxuJVX7LZDtV2KGfbkqJ2viVJJu1WF6AxR4Us8j3nsAze",
+  "timestamp": "2026-11-06T19:37:08Z",
+  "validation_pass": 4,
+  "operations_hash": "LLoZQFaypdEER4jy8ZRvXF5Az74Bc1J73ZayYJoUkCA3vbmo1792U",
+  "fitness": [
+   "02",
+   "000003f2",
+   "",
+   "ffffffff",
+   "00000000"
+  ],
+  "context": "CoViNicTd7zx2XYjjyYFtB9FiMogdfwhvJoh7zHXEUXRMc8CbpLB",
+  "payload_hash": "vh3XNT3g9ukwW4pEfes2x79c3YFPuQzYBuedzMDoSDPhSxtcCK1D",
+  "payload_round": 0,
+  "proof_of_work_nonce": "e5d8a6b800000000",
+  "liquidity_baking_toggle_vote": "pass",
+  "signature": "BLsigBaR8UB7ha6AXDvzwZqL4X6dqdJ3uG4p5GvzDmXmTkwtD5gj3Ep64yUUdwgeih8iykYuCDaJXMHesp2vt98jinWJV3S28r2puNCWSDPPGsSykdzbxgGgGfz8CtpDZ4mDxQVrLjxAiV"
+ },
+ "operation_hashes_n1": [
+  [
+   "opBk6VjkfbPbzyhND3SUe993gsA9ZTaQQjeLMzrYTTV8Qg4rMms",
+   "opLfYEbwmrCM1D56RG6cz6bZf83puq4RwVCuvtgENYLowhT2vLU",
+   "opGXZB3xB4St2oFb7BJBXWufFzz1LaHy1FdxAPVyChdemzhHbi1",
+   "oneFKRAdyaq7cn69JC7mBifPMuCQCvRMqS3hLes7Ugm5jRzJXbF",
+   "oout5DescCeJqTBLXEPeWw1PbEKAnbPpQjRmDudZo3MPPy6k4xp",
+   "ooS8cAvnovEtizqQyXX4c1MWAqhEa831mRFN5YcoYRWdFESDktu",
+   "opTDi1M8eLUVtfVAx3mn9v6PQTypx91v85G4nWB6JqL5q5Ki2ar"
+  ],
+  [],
+  [
+   "opFi6rBJ1MfJoJ2Kx3hAhnpEJAd7geYQKmmfF5VhsUQjgVEY6SF",
+   "ooEKgBWDt2tgLsjfffHxSKymrot3DKEZ21LEwgpVQzqdGETgU8v",
+   "ooH4MyzurQcFuauftpgNpvcEprMGTs7n7Hyr2yCWHtmp8t9XcXs",
+   "opFU2cApMzV4R3VVbSRiDEowg1DicayrrdWai5Fc28m6KtZNdd8"
+  ],
+  []
+ ],
+ "attestations": [
+  {
+   "protocol": "PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY",
+   "chain_id": "NetXdQprcVkpaWU",
+   "hash": "onqppL961iTA1HD8NZEqczeZk6qCKoQGj9PQk39JjaWiKYAAnHf",
+   "branch": "BLwNfGjmQ6Q5fxUFQYocnACa833JsWGBW7iVXPmZDxqMNHaCAYj",
+   "contents": [
+    {
+     "kind": "attestation",
+     "slot": 1,
+     "level": 1010,
+     "round": 0,
+     "block_payload_hash": "vh3XNT3g9ukwW4pEfes2x79c3YFPuQzYBuedzMDoSDPhSxtcCK1D",
+     "metadata": {
+      "delegate": "tz1gjaF81ZRRvdzjobyfVNsAeSC6PScjfQwN",
+      "consensus_power": {
+       "slots": 1029,
+       "baking_power": null
+      },
+      "consensus_key": "tz1gjaF81ZRRvdzjobyfVNsAeSC6PScjfQwN"
+     }
+    }
+   ],
+   "signature": "sigZQ2ziJmB7tjADfpCbwTGxvBoZJWhhFXxDQtA5FhPWWPXpJSDGxnw4NecUqzzqj42TjpWxwdNr1PkNKmfYiJ4VPkHTimsS"
+  },
+  {
+   "protocol": "PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY",
+   "chain_id": "NetXdQprcVkpaWU",
+   "hash": "ooTDZfdGXC16N2fTjZejft42Maxifg8XDoYCujjLCAA3WYrdcJH",
+   "branch": "BLwNfGjmQ6Q5fxUFQYocnACa833JsWGBW7iVXPmZDxqMNHaCAYj",
+   "contents": [
+    {
+     "kind": "attestation",
+     "slot": 3,
+     "level": 1010,
+     "round": 0,
+     "block_payload_hash": "vh3XNT3g9ukwW4pEfes2x79c3YFPuQzYBuedzMDoSDPhSxtcCK1D",
+     "metadata": {
+      "delegate": "tz1b7tUupMgCNw2cCLpKTkSD1NZzB5TkP2sv",
+      "consensus_power": {
+       "slots": 1038,
+       "baking_power": null
+      },
+      "consensus_key": "tz1b7tUupMgCNw2cCLpKTkSD1NZzB5TkP2sv"
+     }
+    }
+   ],
+   "signature": "sigfdhctn5h2Xxe5mnnaQBTdjebrAUZpi6CfLXqkehyyQ2jKUoUCgNi345f8LhzriWzfjsRVCJgTz26qceMNkHQEAFpvi2wx"
+  },
+  {
+   "protocol": "PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY",
+   "chain_id": "NetXdQprcVkpaWU",
+   "hash": "opKmNS9RTanKEJbQF9tZEoMPSZ2LYowdkzu1PJKkv5PFSABtNDA",
+   "branch": "BLwNfGjmQ6Q5fxUFQYocnACa833JsWGBW7iVXPmZDxqMNHaCAYj",
+   "contents": [
+    {
+     "kind": "attestation",
+     "slot": 5,
+     "level": 1010,
+     "round": 0,
+     "block_payload_hash": "vh3XNT3g9ukwW4pEfes2x79c3YFPuQzYBuedzMDoSDPhSxtcCK1D",
+     "metadata": {
+      "delegate": "tz1faswCTDciRzE4oJ9jn2Vm2dvjeyA9fUzU",
+      "consensus_power": {
+       "slots": 925,
+       "baking_power": null
+      },
+      "consensus_key": "tz1faswCTDciRzE4oJ9jn2Vm2dvjeyA9fUzU"
+     }
+    }
+   ],
+   "signature": "sigjTG16rDB5pwwF8cMZqNMZ4YxF1Vxui4psAtaumH6wTT6UTnpg4KTR2zT8uD6qDFrJbMDR4zyABQdvbg1BYqFeuYW2PDuN"
+  },
+  {
+   "protocol": "PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY",
+   "chain_id": "NetXdQprcVkpaWU",
+   "hash": "oo7xYqRbGmtjgk9Ap6yti3FY9GuX8nEVTfwnYZw5ZYrye2GedCY",
+   "branch": "BLwNfGjmQ6Q5fxUFQYocnACa833JsWGBW7iVXPmZDxqMNHaCAYj",
+   "contents": [
+    {
+     "kind": "attestation",
+     "slot": 7,
+     "level": 1010,
+     "round": 0,
+     "block_payload_hash": "vh3XNT3g9ukwW4pEfes2x79c3YFPuQzYBuedzMDoSDPhSxtcCK1D",
+     "metadata": {
+      "delegate": "tz1KqTpEZ7Yob7QbPE4Hy4Wo8fHG8LhKxZSx",
+      "consensus_power": {
+       "slots": 966,
+       "baking_power": null
+      },
+      "consensus_key": "tz1KqTpEZ7Yob7QbPE4Hy4Wo8fHG8LhKxZSx"
+     }
+    }
+   ],
+   "signature": "sigsySt6LqBfxtkJUzAa8U5ABL7E9piEXzo36aCviwiAUSEQnSkA5f1pNW7oZxcpwaHG3Sd1NR8fZ5BiCscW2wtzSFeyYMBB"
+  },
+  {
+   "protocol": "PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY",
+   "chain_id": "NetXdQprcVkpaWU",
+   "hash": "onowrFLfXuMBB4jtR8iNHt98GrBbEQHXDFo4SF7ML5W4CNXNXUi",
+   "branch": "BLwNfGjmQ6Q5fxUFQYocnACa833JsWGBW7iVXPmZDxqMNHaCAYj",
+   "contents": [
+    {
+     "kind": "attestation",
+     "slot": 8,
+     "level": 1010,
+     "round": 0,
+     "block_payload_hash": "vh3XNT3g9ukwW4pEfes2x79c3YFPuQzYBuedzMDoSDPhSxtcCK1D",
+     "metadata": {
+      "delegate": "tz2Tsz4cjVxUesVcdhjLB3DbgyhYQ1jA2hkk",
+      "consensus_power": {
+       "slots": 1032,
+       "baking_power": null
+      },
+      "consensus_key": "tz2Tsz4cjVxUesVcdhjLB3DbgyhYQ1jA2hkk"
+     }
+    }
+   ],
+   "signature": "sigqr5NAXpWjxCq3BwSsPTmSu6pPRpJNBtqkUVRy4T1dULsE138i5sixW4d1sGSvkFMqdeMiDMGCobxJZSuzcoHAn7s5eHAy"
+  },
+  {
+   "protocol": "PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY",
+   "chain_id": "NetXdQprcVkpaWU",
+   "hash": "oozipywNNJoRJPR5K9e4vn3ck9ZXE8bg2hP31MG9fa3dtSnA72r",
+   "branch": "BLwNfGjmQ6Q5fxUFQYocnACa833JsWGBW7iVXPmZDxqMNHaCAYj",
+   "contents": [
+    {
+     "kind": "attestation",
+     "slot": 10,
+     "level": 1010,
+     "round": 0,
+     "block_payload_hash": "vh3XNT3g9ukwW4pEfes2x79c3YFPuQzYBuedzMDoSDPhSxtcCK1D",
+     "metadata": {
+      "delegate": "tz3ad9zV4YpB5QNrJThcJrDsTeZ1dGaNN1XQ",
+      "consensus_power": {
+       "slots": 1019,
+       "baking_power": null
+      },
+      "consensus_key": "tz3ad9zV4YpB5QNrJThcJrDsTeZ1dGaNN1XQ"
+     }
+    }
+   ],
+   "signature": "sigbxm6jwXrtufCJqaF275PUwREEoBUdnFxPhocMML1UsX32iaBYnnkRdBEMmPpbS4StS2YuuSpFHYH182znm7pgvzxS8VCG"
+  },
+  {
+   "protocol": "PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY",
+   "chain_id": "NetXdQprcVkpaWU",
+   "hash": "oomyuAEGTNnpkPXRvmKvTnz65wH4FJDNC4LuDFTqnwPUeEm6dFL",
+   "branch": "BLwNfGjmQ6Q5fxUFQYocnACa833JsWGBW7iVXPmZDxqMNHaCAYj",
+   "contents": [
+    {
+     "kind": "attestations_aggregate",
+     "consensus_content": {
+      "level": 1010,
+      "round": 0,
+      "block_payload_hash": "vh3XNT3g9ukwW4pEfes2x79c3YFPuQzYBuedzMDoSDPhSxtcCK1D"
+     },
+     "committee": [
+      {
+       "slot": 0
+      }
+     ],
+     "metadata": {
+      "committee": [
+       {
+        "delegate": "tz1ddb9NMYHZi5UzPdzTZMYQQZoMub195zgv",
+        "consensus_pkh": "tz4C7vSeujRn4GDXgpCEvUpnxjc61qMB4BrD",
+        "consensus_power": {
+         "slots": 991,
+         "baking_power": null
+        }
+       }
+      ],
+      "total_consensus_power": {
+       "slots": 991,
+       "baking_power": null
+      }
+     }
+    }
+   ],
+   "signature": "BLsigAEKTYQJtmYRycH8oPq28Aarr6i9eGDU9XaQB6jFLRhNgQeo4wXsAEF7FG7uGbMGJ32c6gkXSEUCs7uZrn2dtjgaKMhnCqDqHoqN2UG3oia3PeyxD8F7vmRgYzR1QFijL7o4X3yNn6"
+  }
+ ],
+ "rights": [
+  {
+   "delegate": "tz3ad9zV4YpB5QNrJThcJrDsTeZ1dGaNN1XQ",
+   "first_slot": 10,
+   "attesting_power": 1019,
+   "consensus_key": "tz3ad9zV4YpB5QNrJThcJrDsTeZ1dGaNN1XQ",
+   "consensus_pk": "p2pk67hkrPcxhDTqryEJ7rms9xdm26BNQiuP8jTSJxwjRajpUBbN8o9"
+  },
+  {
+   "delegate": "tz2Tsz4cjVxUesVcdhjLB3DbgyhYQ1jA2hkk",
+   "first_slot": 8,
+   "attesting_power": 1032,
+   "consensus_key": "tz2Tsz4cjVxUesVcdhjLB3DbgyhYQ1jA2hkk",
+   "consensus_pk": "sppk7cT6TiY7VkhDV2pSbY2C9t49WrZLv36PDTU3T5wja1HjiCtnJPs"
+  },
+  {
+   "delegate": "tz1KqTpEZ7Yob7QbPE4Hy4Wo8fHG8LhKxZSx",
+   "first_slot": 7,
+   "attesting_power": 966,
+   "consensus_key": "tz1KqTpEZ7Yob7QbPE4Hy4Wo8fHG8LhKxZSx",
+   "consensus_pk": "edpkuBknW28nW72KG6RoHtYW7p12T6GKc7nAbwYX5m8Wd9sDVC9yav"
+  },
+  {
+   "delegate": "tz1faswCTDciRzE4oJ9jn2Vm2dvjeyA9fUzU",
+   "first_slot": 5,
+   "attesting_power": 925,
+   "consensus_key": "tz1faswCTDciRzE4oJ9jn2Vm2dvjeyA9fUzU",
+   "consensus_pk": "edpkuTXkJDGcFd5nh6VvMz8phXxU3Bi7h6hqgywNFi1vZTfQNnS1RV"
+  },
+  {
+   "delegate": "tz1b7tUupMgCNw2cCLpKTkSD1NZzB5TkP2sv",
+   "first_slot": 3,
+   "attesting_power": 1038,
+   "consensus_key": "tz1b7tUupMgCNw2cCLpKTkSD1NZzB5TkP2sv",
+   "consensus_pk": "edpkuFrRoDSEbJYgxRtLx2ps82UdaYc1WwfS9sE11yhauZt5DgCHbU"
+  },
+  {
+   "delegate": "tz1gjaF81ZRRvdzjobyfVNsAeSC6PScjfQwN",
+   "first_slot": 1,
+   "attesting_power": 1029,
+   "consensus_key": "tz1gjaF81ZRRvdzjobyfVNsAeSC6PScjfQwN",
+   "consensus_pk": "edpktzNbDAUjUk697W7gYg2CRuBQjyPxbEg8dLccYYwKSKvkPvjtV9"
+  },
+  {
+   "delegate": "tz1ddb9NMYHZi5UzPdzTZMYQQZoMub195zgv",
+   "first_slot": 0,
+   "attesting_power": 991,
+   "consensus_key": "tz4C7vSeujRn4GDXgpCEvUpnxjc61qMB4BrD",
+   "consensus_pk": "BLpk1ucMtTA3h1mT2nsfDB9GdN9sM6Fn4UoCqFmVGnxorEPiJnjrWkHrckGw4xUYmqiYj1yeZ1ZH",
+   "companion_pk": null
+  }
+ ],
+ "consensus_threshold_size": 4667,
+ "consensus_committee_size": 7000
+}

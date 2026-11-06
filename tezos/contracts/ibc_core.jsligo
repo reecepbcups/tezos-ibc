@@ -1,0 +1,114 @@
+// Send-only IBC v2 core for Tezos. Stores packet commitments exactly like ICS24Host.sol so a
+// light client on the other side can prove them. No receive, ack or timeout handling.
+
+type payload = {
+  source_port: string,
+  dest_port: string,
+  version: string,
+  encoding: string,
+  value: bytes
+};
+
+type send_packet = {
+  source_client: string,
+  timeout_timestamp: nat, // unix seconds
+  payload: payload
+};
+
+type storage = {
+  // our client id -> counterparty client id on the other chain
+  counterparty: map<string, string>,
+  next_sequence: big_map<string, nat>,
+  // ICS24 commitment path -> commitment. The light client proves entries of this big_map.
+  commitments: big_map<bytes, bytes>,
+  // port -> the only contract allowed to send on it. Bound once by the deployer.
+  ports: big_map<string, address>,
+  // Set at origination, only it can bind ports. Kept last so the big_map ids the relayer reads stay at args 1 and 2.
+  deployer: address
+};
+
+type ret = [list<operation>, storage];
+
+// Fixed 8 byte big-endian, like Solidity's uint64 in abi.encodePacked.
+const u64be = (n: nat): bytes => {
+  const b = bytes(n);
+  // Length check instead of a u64 max literal, LIGO 1.14.2 codegen overflows on it.
+  if (Bytes.length(b) > 8n) return failwith("U64_OVERFLOW");
+  // bytes(0n) is empty, so pad from 8 zero bytes.
+  const pad = 0x0000000000000000;
+  return Bytes.concat(Bytes.sub(0n, abs(8 - Bytes.length(b)), pad), b);
+};
+
+// Raw UTF-8 bytes of a runtime string. PACK gives 05 01 <u32 len> <bytes>, so drop the 6 byte header.
+const str_bytes = (s: string): bytes => {
+  const packed = Bytes.pack(s);
+  return Bytes.sub(6n, abs(Bytes.length(packed) - 6), packed);
+};
+
+const hash_payload = (p: payload): bytes =>
+  Crypto.sha256(
+    Bytes.concats(list([
+      Crypto.sha256(str_bytes(p.source_port)),
+      Crypto.sha256(str_bytes(p.dest_port)),
+      Crypto.sha256(str_bytes(p.version)),
+      Crypto.sha256(str_bytes(p.encoding)),
+      Crypto.sha256(p.value)
+    ]))
+  );
+
+// ICS24Host.packetCommitmentBytes32 with a single payload.
+const commitment = (dest_client: string, timeout: nat, p: payload): bytes =>
+  Crypto.sha256(
+    Bytes.concats(list([
+      0x02,
+      Crypto.sha256(str_bytes(dest_client)),
+      Crypto.sha256(u64be(timeout)),
+      Crypto.sha256(hash_payload(p))
+    ]))
+  );
+
+// ICS24Host.packetCommitmentPathCalldata
+const commitment_path = (client_id: string, seq: nat): bytes =>
+  Bytes.concats(list([str_bytes(client_id), 0x01, u64be(seq)]));
+
+// Deployer only, so nobody can squat an app's port between origination and binding.
+// No rebind or revoke, a bound port is permanent.
+@entry
+const bind_port = (p: [string, address], s: storage): ret => {
+  if (Tezos.get_sender() != s.deployer) return failwith("NOT_DEPLOYER");
+  const [port, owner] = p;
+  if (Big_map.mem(port, s.ports)) return failwith("PORT_TAKEN");
+  return [[], { ...s, ports: Big_map.add(port, owner, s.ports) }];
+};
+
+@entry
+const send_packet = (msg: send_packet, s: storage): ret => {
+  if (Big_map.find_opt(msg.payload.source_port, s.ports) != Some(Tezos.get_sender()))
+    return failwith("NOT_PORT_OWNER");
+  const dest_client = match(Map.find_opt(msg.source_client, s.counterparty)) {
+    when(Some(c)): c;
+    when(None()): failwith("UNKNOWN_CLIENT")
+  };
+  const now: nat = abs(Tezos.get_now() - (0 as timestamp));
+  if (msg.timeout_timestamp <= now) return failwith("TIMEOUT_IN_PAST");
+
+  // IBC v2 sequences start at 1.
+  const seq = match(Big_map.find_opt(msg.source_client, s.next_sequence)) {
+    when(Some(n)): n;
+    when(None()): 1n
+  };
+  const path = commitment_path(msg.source_client, seq);
+  const c = commitment(dest_client, msg.timeout_timestamp, msg.payload);
+  const ev = Tezos.emit("%send_packet", [msg.source_client, seq, c]);
+  return [
+    [ev],
+    {
+      ...s,
+      next_sequence: Big_map.update(msg.source_client, Some(seq + 1n), s.next_sequence),
+      commitments: Big_map.add(path, c, s.commitments)
+    }
+  ];
+};
+
+@view
+const commitment_at = (path: bytes, s: storage): option<bytes> => Big_map.find_opt(path, s.commitments);

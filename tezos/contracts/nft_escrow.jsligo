@@ -1,0 +1,62 @@
+// IBC app on port "fa2-nft". Takes one NFT from the configured FA2 collection, keeps it forever
+// and sends a packet carrying abi.encode(uint256 tokenId, address recipient) to Ethereum.
+
+type bridge = {
+  token_id: nat,
+  eth_recipient: bytes, // 20 bytes
+  timeout_timestamp: nat
+};
+
+type storage = {
+  core: address,
+  fa2: address,
+  source_client: string
+};
+
+type ret = [list<operation>, storage];
+
+const port = "fa2-nft";
+
+// Mirrors ibc_core payload, so the core can type check the call.
+type payload = { source_port: string, dest_port: string, version: string, encoding: string, value: bytes };
+type send_packet = { source_client: string, timeout_timestamp: nat, payload: payload };
+type transfer_dest = { to_: address, token_id: nat, amount: nat };
+type transfer = { from_: address, txs: list<transfer_dest> };
+
+// 32 byte big-endian word, like an abi.encode slot.
+const word = (b: bytes): bytes => {
+  const len = Bytes.length(b);
+  if (len > 32n) return failwith("WORD_OVERFLOW");
+  const zeros = 0x0000000000000000000000000000000000000000000000000000000000000000;
+  return Bytes.concat(Bytes.sub(0n, abs(32 - len), zeros), b);
+};
+
+@entry
+const bridge = (p: bridge, s: storage): ret => {
+  if (Tezos.get_amount() != 0mutez) return failwith("NO_TEZ");
+  if (Bytes.length(p.eth_recipient) != 20n) return failwith("BAD_RECIPIENT");
+  if (p.eth_recipient == 0x0000000000000000000000000000000000000000) return failwith("BAD_RECIPIENT");
+
+  const fa2 = match(Tezos.get_entrypoint_opt("%transfer", s.fa2) as option<contract<list<transfer>>>) {
+    when(Some(c)): c;
+    when(None()): failwith("BAD_FA2")
+  };
+  const core = match(Tezos.get_entrypoint_opt("%send_packet", s.core) as option<contract<send_packet>>) {
+    when(Some(c)): c;
+    when(None()): failwith("BAD_CORE")
+  };
+  // The FA2 fails if the sender doesn't own it or hasn't made us an operator.
+  const pull = Tezos.transaction(
+    list([{ from_: Tezos.get_sender(), txs: list([{ to_: Tezos.get_self_address(), token_id: p.token_id, amount: 1n }]) }]),
+    0mutez,
+    fa2
+  );
+  const value = Bytes.concat(word(bytes(p.token_id)), word(p.eth_recipient));
+  const msg: send_packet = {
+    source_client: s.source_client,
+    timeout_timestamp: p.timeout_timestamp,
+    payload: { source_port: port, dest_port: port, version: "fa2-nft-1", encoding: "application/x-solidity-abi", value }
+  };
+  // Pull first: if the transfer fails, the whole operation reverts and no packet exists.
+  return [[pull, Tezos.transaction(msg, 0mutez, core)], s];
+};

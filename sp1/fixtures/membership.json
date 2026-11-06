@@ -1,0 +1,593 @@
+{
+ "path": "6574682d30010000000000000001",
+ "key_hash": "0ddd33faa04e8168a7b5e95657ab7a574737ffc4308ba6ee1d06c354f9d57d6c",
+ "big_map_id": 5,
+ "block": {
+  "protocol": "PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY",
+  "chain_id": "NetXdQprcVkpaWU",
+  "hash": "BM1kvEH4XbKZPYuSPuwYftCkqKpwnicbaLXFqHCjwmDtjgh5RNU",
+  "level": 833,
+  "proto": 1,
+  "predecessor": "BL2ToReAdqXVo9AGBHc66iuGdQ8gF7JnVWj8uGsXtKciKJFBj8A",
+  "timestamp": "2026-11-06T19:31:14Z",
+  "validation_pass": 4,
+  "operations_hash": "LLoaoPbdjKtExFheFHbUm9ZU8D4pXmoiLMVqHVDDeu7xNBERkncmw",
+  "fitness": [
+   "02",
+   "00000341",
+   "",
+   "ffffffff",
+   "00000000"
+  ],
+  "context": "CoVZ8Cy53zq5g3t3LCJTKoTAuBYkpHo9Di9CbAFETXimKSxD9ZEm",
+  "payload_hash": "vh1vbHe6Qjeba4DpZRckD77xY3JMjpSyLxGQ5hgifPgu3yuEvsJs",
+  "payload_round": 0,
+  "proof_of_work_nonce": "e5d8a6b806000000",
+  "liquidity_baking_toggle_vote": "pass",
+  "signature": "sigThEm8Xb16S4atHcuSTwgdNNwNH2auNmN3NhP53uCcZeAkoRr6A8fJmCcNnNhfh6UpDbh6sgszGnVSHYxbRpY47wBdj5mx"
+ },
+ "next_header": {
+  "protocol": "PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY",
+  "chain_id": "NetXdQprcVkpaWU",
+  "hash": "BMSf1ECP7YxR3a7cqSGxgD626rGXeGPpHxa6es3KecvSbzv8B2k",
+  "level": 834,
+  "proto": 1,
+  "predecessor": "BM1kvEH4XbKZPYuSPuwYftCkqKpwnicbaLXFqHCjwmDtjgh5RNU",
+  "timestamp": "2026-11-06T19:31:16Z",
+  "validation_pass": 4,
+  "operations_hash": "LLoamgzHMhPNckxTWvzHZ5Gg724GqL4KFD8KYdbE9Ph4JCiWEENQx",
+  "fitness": [
+   "02",
+   "00000342",
+   "",
+   "ffffffff",
+   "00000000"
+  ],
+  "context": "CoVwg4nzowYXU5BPX4Kan284uE4Zjzofq54wxqyXF6VohDcEheLF",
+  "payload_hash": "vh3NJTdzM8DDMFSViqyANFLcXiSQ5p135CvcLLmRqtR596FyiT6Z",
+  "payload_round": 0,
+  "proof_of_work_nonce": "e5d8a6b801000000",
+  "liquidity_baking_toggle_vote": "pass",
+  "signature": "sigqKAWctFLD8GtSJ8TdPz5cwU1RN8Xhsb4VgdufWoiQtmm8aZkQ3JFW7H25iqVg6hmoqMkRJheXo6GHfdDPC2HDCFggMM2i"
+ },
+ "op_count": 7,
+ "proof": {
+  "version": 0,
+  "before": {
+   "node": "CoVZrDw7p1qh8AJu6o4XBemMaPXua3STZjBfKdTgMDBsihBMfvfm"
+  },
+  "after": {
+   "node": "CoVZrDw7p1qh8AJu6o4XBemMaPXua3STZjBfKdTgMDBsihBMfvfm"
+  },
+  "state": {
+   "other_trees": {
+    "node": [
+     [
+      "64617461",
+      {
+       "other_trees": {
+        "node": [
+         [
+          "6163746976655f64656c6567617465735f776974685f6d696e696d616c5f7374616b65",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_node": "CoUsihU6uvGpN4VffhfecsY8ji8PzQMJ7CkwSiutsrXgacH2F2Lm"
+            }
+           }
+          }
+         ],
+         [
+          "61646170746976655f69737375616e63655f6c61756e63685f6379636c65",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_value": "CoVcF6M1ooSdXuHetFrH3b1nprjGd1koKM2ys7RDW2mYnAsh6FfE"
+            }
+           }
+          }
+         ],
+         [
+          "6174746573746174696f6e5f6272616e6368",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_value": "CoVmPt5dEoR6XtJ3GpweAyYZTanTzk4ECyGeCKqAyBQe8UeuUfmj"
+            }
+           }
+          }
+         ],
+         [
+          "6269675f6d617073",
+          {
+           "other_trees": {
+            "node": [
+             [
+              "696e646578",
+              {
+               "other_trees": {
+                "node": [
+                 [
+                  "30",
+                  {
+                   "other_trees": {
+                    "other_trees": {
+                     "blinded_node": "CoUroYhtqxMkyFpFGT5T3C2vjY6SJHBKRDz5pGd8iU9x8ZxdGt1X"
+                    }
+                   }
+                  }
+                 ],
+                 [
+                  "31",
+                  {
+                   "other_trees": {
+                    "other_trees": {
+                     "blinded_node": "CoWHU7S1d2pAMVSRWEkdGKN42eLYM8cpNSX3bqkz8f5jGE77wsEj"
+                    }
+                   }
+                  }
+                 ],
+                 [
+                  "3130",
+                  {
+                   "other_trees": {
+                    "other_trees": {
+                     "blinded_node": "CoUzM9hhbd9DdH1DAZNWskKi18JjKfepF2c8ATjEvWbgsB6qZRFH"
+                    }
+                   }
+                  }
+                 ],
+                 [
+                  "32",
+                  {
+                   "other_trees": {
+                    "other_trees": {
+                     "blinded_node": "CoW6XPVvzYAbnox49Mpdd2nEPQnYpH6WdToEK8MKgf9PeH2WbQq1"
+                    }
+                   }
+                  }
+                 ],
+                 [
+                  "33",
+                  {
+                   "other_trees": {
+                    "other_trees": {
+                     "blinded_node": "CoWHU7S1d2pAMVSRWEkdGKN42eLYM8cpNSX3bqkz8f5jGE77wsEj"
+                    }
+                   }
+                  }
+                 ],
+                 [
+                  "34",
+                  {
+                   "other_trees": {
+                    "other_trees": {
+                     "blinded_node": "CoVhra7QrkFRJNzAKhKRJ2UkyUDddwyKoV4BHW1PXBmeFMaSXEvU"
+                    }
+                   }
+                  }
+                 ],
+                 [
+                  "35",
+                  {
+                   "other_trees": {
+                    "node": [
+                     [
+                      "636f6e74656e7473",
+                      {
+                       "other_trees": {
+                        "node": [
+                         [
+                          "30646464333366616130346538313638613762356539353635376162376135373437333766666334333038626136656531643036633335346639643537643663",
+                          {
+                           "other_trees": {
+                            "node": [
+                             [
+                              "64617461",
+                              {
+                               "other_trees": {
+                                "other_trees": {
+                                 "value": "0a00000020de05b2fb09e969a905fa88affa90ed1a68562955511f88c36557103a5a61c32f"
+                                }
+                               }
+                              }
+                             ],
+                             [
+                              "6c656e",
+                              {
+                               "other_trees": {
+                                "other_trees": {
+                                 "blinded_value": "CoVhsvfeSCkHiDeLy8831AgjZVFCQx3jep4foo1ckFMdY8Y9CEyG"
+                                }
+                               }
+                              }
+                             ]
+                            ]
+                           }
+                          }
+                         ]
+                        ]
+                       }
+                      }
+                     ],
+                     [
+                      "6b65795f74797065",
+                      {
+                       "other_trees": {
+                        "other_trees": {
+                         "blinded_value": "CoUgcxy4N7SptBqwkWA3v1VC6GJ4v71vK2ofz9TynFGTe8wALFKy"
+                        }
+                       }
+                      }
+                     ],
+                     [
+                      "746f74616c5f6279746573",
+                      {
+                       "other_trees": {
+                        "other_trees": {
+                         "blinded_value": "CoWFKRPPxsB1bLefzzjBxBRH6Ro1LLPZBeYyXuckiaHZA2SVkKgi"
+                        }
+                       }
+                      }
+                     ],
+                     [
+                      "76616c75655f74797065",
+                      {
+                       "other_trees": {
+                        "other_trees": {
+                         "blinded_value": "CoUgcxy4N7SptBqwkWA3v1VC6GJ4v71vK2ofz9TynFGTe8wALFKy"
+                        }
+                       }
+                      }
+                     ]
+                    ]
+                   }
+                  }
+                 ],
+                 [
+                  "36",
+                  {
+                   "other_trees": {
+                    "other_trees": {
+                     "blinded_node": "CoVACYr2c9BSwwYZPwePTzKdsV2DAHp5WSA5zir4ybhHb6ut6N8v"
+                    }
+                   }
+                  }
+                 ],
+                 [
+                  "37",
+                  {
+                   "other_trees": {
+                    "other_trees": {
+                     "blinded_node": "CoUyuaX2uHCWbrtjKczCP1rR1LbEkHqeRf4RhWMo28k6h7bEsSpy"
+                    }
+                   }
+                  }
+                 ],
+                 [
+                  "38",
+                  {
+                   "other_trees": {
+                    "other_trees": {
+                     "blinded_node": "CoWJZKgeh8KrhikE55QUTHWoPqWBWKfu732invb38haKfm5uZ8qC"
+                    }
+                   }
+                  }
+                 ],
+                 [
+                  "39",
+                  {
+                   "other_trees": {
+                    "other_trees": {
+                     "blinded_node": "CoWLhJ74LegSWmZKd25bUqKLsbfVDGTDrfdgj6GHncFjg77Pkite"
+                    }
+                   }
+                  }
+                 ]
+                ]
+               }
+              }
+             ],
+             [
+              "6e657874",
+              {
+               "other_trees": {
+                "other_trees": {
+                 "blinded_value": "CoVwhUQn7nhBHdn88p9RsHCwVSsk57ZujpcKFJY1hkdFXgJrwuj8"
+                }
+               }
+              }
+             ]
+            ]
+           }
+          }
+         ],
+         [
+          "626c6f636b5f726f756e64",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_value": "CoW4fTVfN6WBZ6XqT38EqLzn5raQUYkjSL4Ce7J2KsGKcFPjgUJy"
+            }
+           }
+          }
+         ],
+         [
+          "6361636865",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_node": "CoViTZBUQDJWwHkwwGJew2oT41cthbSsrKQDQHN1sM21b2qujVPd"
+            }
+           }
+          }
+         ],
+         [
+          "636c7374",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_node": "CoVvxnDEAeESAz4LNTv9oUJphTdkN71NgucKno2a45VsEL3Pg23b"
+            }
+           }
+          }
+         ],
+         [
+          "636f6e73656375746976655f726f756e645f7a65726f",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_value": "CoVe2MWTs13685NL3QxToady4mXStSeqPUxxtgFmLuy3xh3Bc9hi"
+            }
+           }
+          }
+         ],
+         [
+          "636f6e73656e7375735f6b657973",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_node": "CoWNhSdgoZqTgKdjedLAdUY53HWDpkS2ejiwtYz71bTYChJkYzBs"
+            }
+           }
+          }
+         ],
+         [
+          "636f6e747261637473",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_node": "CoVVvykq1LZQxQyFBkFJswEwbiqbAJPzkGGj8MGnyv9nttotYzvH"
+            }
+           }
+          }
+         ],
+         [
+          "6379636c65",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_node": "CoVugMCdxEbniLDxaYKhbQwiygMTgrCqFRF1gsQpK4UEGgaALf91"
+            }
+           }
+          }
+         ],
+         [
+          "64616c",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_node": "CoWUUA1NaF5XKzatuivit1M5CcV8HiqQdvP4ai3jB8dNW5i8AaQD"
+            }
+           }
+          }
+         ],
+         [
+          "64656c656761746573",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_node": "CoUsihU6uvGpN4VffhfecsY8ji8PzQMJ7CkwSiutsrXgacH2F2Lm"
+            }
+           }
+          }
+         ],
+         [
+          "646f6d61696e",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_value": "CoVZ8SDxDiqNDRZ8AS72abihLKijqczBDzeUMYMme3Sir4KcHkyz"
+            }
+           }
+          }
+         ],
+         [
+          "666f7262696464656e5f64656c656761746573",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_value": "CoW4fTVfN6WBZ6XqT38EqLzn5raQUYkjSL4Ce7J2KsGKcFPjgUJy"
+            }
+           }
+          }
+         ],
+         [
+          "67656e657369735f6b6579",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_value": "CoVSQwz1mSz28kNCBso3F3ZHuLj5GXwXovu4byqweTa96bJAzTX6"
+            }
+           }
+          }
+         ],
+         [
+          "6c69717569646974795f62616b696e675f63706d6d5f61646472657373",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_value": "CoVuxmbaNaALynu426NDwzCVUtiKMHFwEswmc5M42NgrECtHqciV"
+            }
+           }
+          }
+         ],
+         [
+          "6c69717569646974795f62616b696e675f6573636170655f656d61",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_value": "CoW4fTVfN6WBZ6XqT38EqLzn5raQUYkjSL4Ce7J2KsGKcFPjgUJy"
+            }
+           }
+          }
+         ],
+         [
+          "6e756d6265725f6f665f636163686573",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_value": "CoVzE7AxKfp1fEpJk5i4qVntP2WqRR35znGBZfHuQAsUArJoQib6"
+            }
+           }
+          }
+         ],
+         [
+          "70726f746f636f6c5f61637469766174696f6e5f6c6576656c",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_value": "CoWG69nMHdez4s8SahwsB2m5ZPCLqPre7Qmi5uwdJ9nhFsEX7RdN"
+            }
+           }
+          }
+         ],
+         [
+          "73616e64626f785f706172616d65746572",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_value": "CoVZDcjRgjmKnAhetUtb1AVQYwuUi3fBK7js11vjBETPuG5FcU8o"
+            }
+           }
+          }
+         ],
+         [
+          "7361706c696e67",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_node": "CoVbip7pyXZDp1umo3cGUbCWJUA8wDkPbWR56wKqS434DiDSwGWC"
+            }
+           }
+          }
+         ],
+         [
+          "736565645f737461747573",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_value": "CoVa898LzEftSsbRB5gHhNtRqUwsVDoS1gw6fs4LtNQQDgzjXzfh"
+            }
+           }
+          }
+         ],
+         [
+          "736d6172745f726f6c6c7570",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_node": "CoUnnk5ezRFjFZFmip1yPMfN4PppcDTyoh4E4cZmt7VF1y7kPwhi"
+            }
+           }
+          }
+         ],
+         [
+          "7374616b696e675f62616c616e6365",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_node": "CoV1t14nDWbzthNac1nN3E5VVHfVyzeT4u56sgQMNPN2q8gzfVAf"
+            }
+           }
+          }
+         ],
+         [
+          "7631",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_node": "CoVssfKmE8jKNJfiJA2csgTGt5aK4V3zhp8XWMyLxeWraw16wK7b"
+            }
+           }
+          }
+         ],
+         [
+          "76657273696f6e",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_value": "CoVu8MSvgSD5QcPsvkgdqxm3Lao18g4jj4AAx6KV34DU4gUTWEHm"
+            }
+           }
+          }
+         ],
+         [
+          "766f746573",
+          {
+           "other_trees": {
+            "other_trees": {
+             "blinded_node": "CoUnGRFTjT69yJwkbWHSkKgA5MWCg4n3UsWYttVStHbzTzRMBTeG"
+            }
+           }
+          }
+         ]
+        ]
+       }
+      }
+     ],
+     [
+      "7072656465636573736f725f626c6f636b5f6d657461646174615f68617368",
+      {
+       "other_trees": {
+        "other_trees": {
+         "blinded_value": "CoWSnjxZmBW7rJzZDWAHPfVa8td5mmPkdTxjrUf2fBVrP58utn4X"
+        }
+       }
+      }
+     ],
+     [
+      "7072656465636573736f725f6f70735f6d657461646174615f68617368",
+      {
+       "other_trees": {
+        "other_trees": {
+         "blinded_value": "CoVkQedExtCwg8pK8quped2e8qPYvESaDDPo5ttJnSXb9sFYbqeL"
+        }
+       }
+      }
+     ],
+     [
+      "70726f746f636f6c",
+      {
+       "other_trees": {
+        "other_trees": {
+         "blinded_value": "CoVeZeUA74qyE5iPBiNvCHpCReoZdyfJ9q7EWBjnkj1Artp81nxg"
+        }
+       }
+      }
+     ],
+     [
+      "746573745f636861696e",
+      {
+       "other_trees": {
+        "other_trees": {
+         "blinded_value": "CoVa898LzEftSsbRB5gHhNtRqUwsVDoS1gw6fs4LtNQQDgzjXzfh"
+        }
+       }
+      }
+     ]
+    ]
+   }
+  }
+ }
+}

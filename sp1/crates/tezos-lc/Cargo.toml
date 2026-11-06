@@ -1,0 +1,14 @@
+[package]
+name = "tezos-lc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true }
+alloy-sol-types = { workspace = true }
+tezos-merkle = { path = "../tezos-merkle" }
+tezos-consensus = { path = "../tezos-consensus" }
+tezos-sampler = { path = "../tezos-sampler" }
+
+[dev-dependencies]
+serde_json = { workspace = true }

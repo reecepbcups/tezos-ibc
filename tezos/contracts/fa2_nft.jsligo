@@ -1,0 +1,96 @@
+// Minimal FA2 (TZIP-12) NFT for local testing. Admin mints, anyone transfers what they own.
+
+type transfer_dest = { to_: address, token_id: nat, amount: nat };
+type transfer = { from_: address, txs: list<transfer_dest> };
+
+type balance_request = { owner: address, token_id: nat };
+type balance_response = { request: balance_request, balance: nat };
+type balance_of = { requests: list<balance_request>, callback: contract<list<balance_response>> };
+
+type operator_param = { owner: address, operator: address, token_id: nat };
+type update_operator =
+  ["Add_operator", operator_param] | ["Remove_operator", operator_param];
+
+type storage = {
+  admin: address,
+  ledger: big_map<nat, address>,
+  operators: big_map<[address, address, nat], unit>,
+  token_metadata: big_map<nat, { token_id: nat, token_info: map<string, bytes> }>,
+  metadata: big_map<string, bytes>
+};
+
+type ret = [list<operation>, storage];
+
+const owner_of = (id: nat, s: storage): address =>
+  match(Big_map.find_opt(id, s.ledger)) {
+    when(Some(o)): o;
+    when(None()): failwith("FA2_TOKEN_UNDEFINED")
+  };
+
+@entry
+const transfer = (ts: list<transfer>, s: storage): ret => {
+  const sender = Tezos.get_sender();
+  const ledger = List.fold_left(
+    ([l, t]: [big_map<nat, address>, transfer]) =>
+      List.fold_left(
+        ([l2, d]: [big_map<nat, address>, transfer_dest]) => {
+          if (d.amount == 0n) return l2;
+          if (d.amount != 1n) return failwith("FA2_INSUFFICIENT_BALANCE");
+          const cur = match(Big_map.find_opt(d.token_id, l2)) {
+            when(Some(o)): o;
+            when(None()): failwith("FA2_TOKEN_UNDEFINED")
+          };
+          if (cur != t.from_) return failwith("FA2_INSUFFICIENT_BALANCE");
+          if (sender != t.from_ && !Big_map.mem([t.from_, sender, d.token_id], s.operators))
+            return failwith("FA2_NOT_OPERATOR");
+          return Big_map.update(d.token_id, Some(d.to_), l2);
+        },
+        l,
+        t.txs
+      ),
+    s.ledger,
+    ts
+  );
+  return [[], { ...s, ledger }];
+};
+
+@entry
+const balance_of = (p: balance_of, s: storage): ret => {
+  const res = List.map(
+    (r: balance_request) => ({ request: r, balance: owner_of(r.token_id, s) == r.owner ? 1n : 0n }),
+    p.requests
+  );
+  return [[Tezos.transaction(res, 0mutez, p.callback)], s];
+};
+
+@entry
+const update_operators = (ups: list<update_operator>, s: storage): ret => {
+  const operators = List.fold_left(
+    ([ops, u]: [big_map<[address, address, nat], unit>, update_operator]) =>
+      match(u) {
+        when(Add_operator(p)): do {
+          if (p.owner != Tezos.get_sender()) return failwith("FA2_NOT_OWNER");
+          return Big_map.add([p.owner, p.operator, p.token_id], unit, ops);
+        };
+        when(Remove_operator(p)): do {
+          if (p.owner != Tezos.get_sender()) return failwith("FA2_NOT_OWNER");
+          return Big_map.remove([p.owner, p.operator, p.token_id], ops);
+        }
+      },
+    s.operators,
+    ups
+  );
+  return [[], { ...s, operators }];
+};
+
+@entry
+const mint = ([id, to_]: [nat, address], s: storage): ret => {
+  if (Tezos.get_sender() != s.admin) return failwith("NOT_ADMIN");
+  if (Big_map.mem(id, s.ledger)) return failwith("TOKEN_EXISTS");
+  const info = Map.literal(list([["name", 0x54657374204e4654]]));
+  return [[], {
+    ...s,
+    ledger: Big_map.add(id, to_, s.ledger),
+    token_metadata: Big_map.add(id, { token_id: id, token_info: info }, s.token_metadata)
+  }];
+};
