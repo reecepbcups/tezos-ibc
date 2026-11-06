@@ -11,7 +11,7 @@ pub mod rpc;
 pub use attestation::{Attestation, PublicKey};
 pub use header::BlockHeader;
 pub use payload::block_payload_hash;
-pub use quorum::{attested_predecessor, verify_quorum, Committee, Validator};
+pub use quorum::{attested_predecessor, verify_quorum, verify_signers, Committee, Validator};
 
 pub type Hash = [u8; 32];
 

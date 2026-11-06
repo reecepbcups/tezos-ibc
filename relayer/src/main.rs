@@ -10,6 +10,7 @@
 //! only pass the local MockVerifier; cpu and network make real Groth16 proofs.
 
 mod profile;
+mod quorum;
 mod tezos;
 
 use std::collections::HashSet;

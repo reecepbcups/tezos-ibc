@@ -70,11 +70,105 @@ fn header_not_attested_predecessor() {
 
 #[test]
 fn below_quorum() {
-    let e = rejects(|i| i.attestations.truncate(2));
+    let e = rejects(|i| {
+        i.attestations.truncate(2);
+        i.slots = quorum_slots(&SANDBOX, i).unwrap();
+    });
     assert!(
         matches!(e, Error::Consensus(ConsensusError::BelowThreshold { .. })),
         "{e:?}"
     );
+}
+
+fn below_by_one(e: &Error) -> bool {
+    *e == Error::Consensus(ConsensusError::BelowThreshold {
+        power: SANDBOX.threshold - 1,
+        threshold: SANDBOX.threshold,
+    })
+}
+
+/// Index of a single attestation, whose slots are listed in `Input::slots`.
+fn single_with_listed_slots(i: &Input) -> usize {
+    i.attestations
+        .iter()
+        .position(|a| matches!(a, Attestation::Single { .. }))
+        .unwrap()
+}
+
+#[test]
+fn counted_slots() {
+    type Mutate = fn(&mut Input);
+    type Expect = fn(&Error) -> bool;
+    let rejected: &[(&str, Mutate, Expect)] = &[
+        (
+            "duplicate slot",
+            |i| i.slots[1] = i.slots[0],
+            |e| *e == Error::SlotsNotIncreasing,
+        ),
+        (
+            "unsorted",
+            |i| i.slots.swap(0, 1),
+            |e| *e == Error::SlotsNotIncreasing,
+        ),
+        (
+            "slot past committee",
+            |i| i.slots.push(SANDBOX.committee_size as u16),
+            |e| *e == Error::SlotOutOfRange(SANDBOX.committee_size as u16),
+        ),
+        (
+            "named slot past committee",
+            |i| match &mut i.attestations[0] {
+                Attestation::Single { slot, .. } => *slot = 7000,
+                Attestation::Aggregate { committee, .. } => committee[0].slot = 7000,
+            },
+            |e| *e == Error::SlotOutOfRange(7000),
+        ),
+        // Its owner's slots stay listed, so they're now owned by a non-signer.
+        (
+            "signer dropped",
+            |i| {
+                i.attestations.remove(single_with_listed_slots(i));
+            },
+            |e| matches!(e, Error::SlotNotSigned(_)),
+        ),
+        (
+            "signer's signature invalid",
+            |i| {
+                let k = single_with_listed_slots(i);
+                match &mut i.attestations[k] {
+                    Attestation::Single { signature, .. } => signature[3] ^= 1,
+                    _ => unreachable!(),
+                }
+            },
+            |e| *e == Error::Consensus(ConsensusError::BadSignature),
+        ),
+        ("threshold minus one", |i| drop(i.slots.pop()), below_by_one),
+        (
+            "no slots",
+            |i| i.slots.clear(),
+            |e| {
+                matches!(
+                    e,
+                    Error::Consensus(ConsensusError::BelowThreshold { power: 0, .. })
+                )
+            },
+        ),
+    ];
+    for (name, mutate, ok) in rejected {
+        let e = rejects(mutate);
+        assert!(ok(&e), "{name}: {e:?}");
+    }
+
+    let base = input();
+    assert_eq!(
+        base.slots.len() as u64,
+        SANDBOX.threshold,
+        "fixture lists exactly threshold"
+    );
+    // Every signer slot, more than needed, is fine too.
+    let mut all = base.clone();
+    all.slots = (0..SANDBOX.committee_size as u16).collect();
+    verify(&SANDBOX, &all).unwrap();
 }
 
 #[test]

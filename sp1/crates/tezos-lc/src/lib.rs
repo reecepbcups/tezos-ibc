@@ -14,7 +14,7 @@
 use alloy_sol_types::SolValue;
 use serde::{Deserialize, Serialize};
 use tezos_consensus::{
-    attested_predecessor, track, verify_quorum, Attestation, BlockHeader, Committee, Validator,
+    attested_predecessor, track, verify_signers, Attestation, BlockHeader, Committee, Validator,
 };
 use tezos_merkle::{
     big_map_value_path, bytes_key_hash, commit_hash, decode_bytes32_leaf, verify_membership,
@@ -118,6 +118,8 @@ pub struct Input {
     pub attested_ops: Vec<Hash>,
     /// Attestations of H(n+1), from block n+2's consensus pass
     pub attestations: Vec<Attestation>,
+    /// Slots counted toward quorum, strictly increasing, each owned by a signer. See `quorum_slots`.
+    pub slots: Vec<u16>,
     /// H(n)
     pub header: BlockHeader,
     /// H(n-1), only for its `proto`
@@ -152,6 +154,12 @@ pub enum Error {
     /// All bakers attest is active from this level, which our quorum rules don't implement
     AllBakersAttest(i32),
     BadActivationLevel,
+    /// Slot at or past `committee_size`
+    SlotOutOfRange(u16),
+    /// `Input::slots` not strictly increasing, which is what rules out counting a slot twice
+    SlotsNotIncreasing,
+    /// Counted slot whose owner has no verified attestation
+    SlotNotSigned(u16),
 }
 
 impl From<tezos_sampler::Error> for Error {
@@ -224,22 +232,53 @@ pub fn verify(cfg: &Config, input: &Input) -> Result<PublicValues, Error> {
             cycle,
         )
     )?;
-    let committee = track!(
-        "committee",
-        committee_at(&state, &seed, pos, cfg.committee_size)
-    )?;
+    if cfg.committee_size > u32::from(u16::MAX) + 1 {
+        return Err(Error::CommitteeTooLarge);
+    }
+    // Owner of a slot by the sampler draw, so only slots we need get sampled.
+    let owner = |slot: u16| -> Result<usize, Error> {
+        if u32::from(slot) >= cfg.committee_size {
+            return Err(Error::SlotOutOfRange(slot));
+        }
+        Ok(tezos_sampler::slot_owner(&state, &seed, pos, i32::from(slot))?.0)
+    };
 
     // Quorum on H(n+1)'s payload makes its predecessor, H(n), final.
-    track!(
+    // Signers are keyed by support index, so a delegate can't sign twice under two slots.
+    let signers = track!(
         "quorum",
-        verify_quorum(
+        verify_signers(
             &input.chain_id,
             &input.attested,
             &input.attestations,
-            &committee,
-            cfg.threshold,
+            |slot| -> Result<(usize, Validator), Error> {
+                let i = owner(slot)?;
+                Ok((i, validator(&state.support[i], 0)))
+            },
         )
     )?;
+    // Power counted is a lower bound: listed slots owned by signers. Each slot is one unit
+    // of power and appears once, so the total can't exceed what the signers hold.
+    track!("slot_count", {
+        let mut prev = None;
+        for &slot in &input.slots {
+            if prev.is_some_and(|p| slot <= p) {
+                return Err(Error::SlotsNotIncreasing);
+            }
+            prev = Some(slot);
+            if !signers.contains(&owner(slot)?) {
+                return Err(Error::SlotNotSigned(slot));
+            }
+        }
+        let power = input.slots.len() as u64;
+        if power < cfg.threshold {
+            return Err(tezos_consensus::Error::BelowThreshold {
+                power,
+                threshold: cfg.threshold,
+            }
+            .into());
+        }
+    });
     let pred = track!(
         "payload_hash",
         attested_predecessor(&input.attested, &input.attested_ops)
@@ -361,17 +400,54 @@ pub fn committee_at(
         if std::mem::replace(&mut seen[i], true) {
             continue;
         }
-        let s = &state.support[i];
         out.insert(
             slot as u16,
-            Validator {
-                consensus_pk: public_key(&s.consensus_pk),
-                companion_pk: s.companion_pk.map(|k| k.to_vec()),
-                power: u64::from(sampled.power[i]),
-            },
+            validator(&state.support[i], u64::from(sampled.power[i])),
         );
     }
     Ok(out)
+}
+
+fn validator(s: &tezos_sampler::ConsensusPk, power: u64) -> Validator {
+    Validator {
+        consensus_pk: public_key(&s.consensus_pk),
+        companion_pk: s.companion_pk.map(|k| k.to_vec()),
+        power,
+    }
+}
+
+/// Picks `Input::slots` for the relayer: the lowest `threshold` slots owned by a delegate
+/// that named a slot in `attestations`, or all of them if there are fewer.
+/// Doesn't check signatures, `verify` does.
+pub fn quorum_slots(cfg: &Config, input: &Input) -> Result<Vec<u16>, Error> {
+    let (cycle, pos) = cfg
+        .era
+        .level_info(input.attested.level)
+        .ok_or(Error::LevelOutsideEra(input.attested.level))?;
+    let (state, seed) = verify_cycle(
+        &input.trusted_root,
+        &input.sampler_state_proof,
+        &input.seed_proof,
+        cycle,
+    )?;
+    let owners = tezos_sampler::committee(&state, &seed, pos, cfg.committee_size)?.owners;
+    let mut signed = vec![false; state.support.len()];
+    for att in &input.attestations {
+        let named: Vec<u16> = match att {
+            Attestation::Single { slot, .. } => vec![*slot],
+            Attestation::Aggregate { committee, .. } => committee.iter().map(|m| m.slot).collect(),
+        };
+        for s in named {
+            if let Some(&o) = owners.get(usize::from(s)) {
+                signed[o as usize] = true;
+            }
+        }
+    }
+    Ok((0..owners.len())
+        .filter(|&s| signed[owners[s] as usize])
+        .take(cfg.threshold as usize)
+        .map(|s| s as u16)
+        .collect())
 }
 
 fn public_key(k: &tezos_sampler::PublicKey) -> tezos_consensus::PublicKey {

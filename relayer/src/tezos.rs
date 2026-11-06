@@ -424,7 +424,7 @@ pub async fn build_input(
         None => new_state_proof.hash().map_err(|e| anyhow!("{e:?}"))?.1,
     };
 
-    Ok(Input {
+    let mut input = Input {
         chain_id: rpc.chain_id().await?,
         big_map_id,
         trusted_level: trusted.level,
@@ -437,13 +437,17 @@ pub async fn build_input(
         attested,
         attested_ops,
         attestations,
+        slots: vec![],
         header: rpc.header(n).await?,
         parent: rpc.header(n - 1).await?,
         new_root,
         new_info: rpc.commit_info(new_level).await?,
         new_state_proof,
         commitments,
-    })
+    };
+    // Full slots first, they're the fallback if the subset doesn't work out.
+    input.slots = tezos_lc::quorum_slots(era, &input).map_err(|e| anyhow!("{e:?}"))?;
+    Ok(crate::quorum::trim(era, input))
 }
 
 #[cfg(test)]

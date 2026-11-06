@@ -14,8 +14,8 @@ use crate::attestation::{bls, bls_mode_bytes, verify_single, Attestation, Public
 use crate::{block_payload_hash, BlockHeader, Error, Hash};
 
 /// A delegate's rights at the attested level, keyed by its first (canonical) slot
-/// in the committee map. Attestations name that slot, so slot -> key is what binds
-/// a signature to a delegate.
+/// in the committee map. On the light client path any of its slots resolves to it,
+/// and the delegate's support index is what binds a signature to a delegate.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Validator {
     pub consensus_pk: PublicKey,
@@ -40,29 +40,49 @@ pub fn verify_quorum(
     committee: &Committee,
     threshold: u64,
 ) -> Result<u64, Error> {
-    let round = attested.round()?;
-    let mut seen_slots = BTreeSet::new();
-    let mut seen_keys = BTreeSet::new();
-    let mut power = 0u64;
-    let mut count = |slot: u16| -> Result<&Validator, Error> {
+    let lookup = |slot: u16| -> Result<(u16, Validator), Error> {
         let v = committee.get(&slot).ok_or(Error::UnknownSlot(slot))?;
-        if !seen_slots.insert(slot) || !seen_keys.insert(v.consensus_pk.clone()) {
-            return Err(Error::DuplicateDelegate(slot));
+        Ok((slot, v.clone()))
+    };
+    let signers = verify_signers(chain_id, attested, attestations, lookup)?;
+    let power = signers.iter().map(|s| committee[s].power).sum();
+    if power < threshold {
+        return Err(Error::BelowThreshold { power, threshold });
+    }
+    Ok(power)
+}
+
+/// Checks every attestation like `verify_quorum` and returns the delegates that signed,
+/// without summing power. `lookup` maps an attestation's slot to its owner's id and keys
+/// (`power` is ignored), so the caller decides how much each signer counts.
+/// A delegate (id) or consensus key showing up twice is an error.
+pub fn verify_signers<K: Ord + Copy, E: From<Error>>(
+    chain_id: &[u8; 4],
+    attested: &BlockHeader,
+    attestations: &[Attestation],
+    mut lookup: impl FnMut(u16) -> Result<(K, Validator), E>,
+) -> Result<BTreeSet<K>, E> {
+    let round = attested.round()?;
+    let mut signers = BTreeSet::new();
+    let mut seen_keys = BTreeSet::new();
+    let mut count = |slot: u16| -> Result<Validator, E> {
+        let (id, v) = lookup(slot)?;
+        if !signers.insert(id) || !seen_keys.insert(v.consensus_pk.clone()) {
+            return Err(Error::DuplicateDelegate(slot).into());
         }
-        power += v.power;
         Ok(v)
     };
 
     for att in attestations {
         let c = att.content();
         if c.level != attested.level {
-            return Err(Error::WrongLevel(c.level));
+            return Err(Error::WrongLevel(c.level).into());
         }
         if c.round != round {
-            return Err(Error::WrongRound(c.round));
+            return Err(Error::WrongRound(c.round).into());
         }
         if c.block_payload_hash != attested.payload_hash {
-            return Err(Error::WrongPayloadHash);
+            return Err(Error::WrongPayloadHash.into());
         }
         match att {
             Attestation::Single {
@@ -78,7 +98,7 @@ pub fn verify_quorum(
                 signature,
             } => crate::track!("bls_aggregate", {
                 if members.is_empty() {
-                    return Err(Error::EmptyAggregate);
+                    return Err(Error::EmptyAggregate.into());
                 }
                 let op = bls_mode_bytes(branch, content);
                 let mut agg = bls12_381::G1Projective::identity();
@@ -88,7 +108,7 @@ pub fn verify_quorum(
                 for m in members {
                     let v = count(m.slot)?;
                     let PublicKey::Bls(pk) = &v.consensus_pk else {
-                        return Err(Error::NonBlsInAggregate(m.slot));
+                        return Err(Error::NonBlsInAggregate(m.slot).into());
                     };
                     agg += bls::g1(pk)?;
                     // DAL content makes the member sign with consensus + weight * companion.
@@ -109,10 +129,8 @@ pub fn verify_quorum(
             }),
         }
     }
-    if power < threshold {
-        return Err(Error::BelowThreshold { power, threshold });
-    }
-    Ok(power)
+    drop(count);
+    Ok(signers)
 }
 
 /// Given a trusted (quorum attested) H(n+1) and its non-consensus operation hashes

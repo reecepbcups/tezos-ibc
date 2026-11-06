@@ -14,7 +14,15 @@ use crate::{env, CFG, ELF};
 pub async fn profile(prover: &EnvProver) -> Result<()> {
     let args: Vec<String> = std::env::args().skip(2).collect();
     let input = match args.first() {
-        Some(f) if f.ends_with(".json") => serde_json::from_slice(&std::fs::read(f)?)?,
+        // Trimmed like build_input does, unless PROFILE_FULL=1 to see the cost of every op.
+        Some(f) if f.ends_with(".json") => {
+            let full = serde_json::from_slice(&std::fs::read(f)?)?;
+            if env("PROFILE_FULL", "0") == "1" {
+                full
+            } else {
+                crate::quorum::trim(&CFG, full)
+            }
+        }
         Some(a) => {
             let attested: i32 = a.parse().context("attested_level")?;
             // Default trusts n-1, the newest state the update can prove, so new == trusted.
