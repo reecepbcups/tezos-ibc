@@ -5880,6 +5880,7 @@ version = "0.1.0"
 dependencies = [
  "alloy",
  "anyhow",
+ "chrono",
  "hex",
  "reqwest 0.12.28",
  "serde_json",
@@ -5890,6 +5891,7 @@ dependencies = [
  "tezos-merkle",
  "tezos-sampler",
  "tokio",
+ "tracing",
  "tracing-subscriber",
 ]
 

@@ -72,6 +72,61 @@ queue(data) -> wait delay -> execute(data)     admin only, cancel(data) any time
 update / submitMisbehaviour -> frozen          anyone, instant
 ```
 
+## Running the keeper
+
+`relayer start` relays packets and refreshes the client before it goes stale. A packet relay moves the client forward too, so the 24h refresh only costs a proof on days with no traffic. It also serves a tiny HTTP server so something can page you when it stops working.
+
+```sh
+CLIENT=0x.. NFT=0x.. CORE=KT1.. ETH_RPC=https://.. TEZOS_RPC=https://.. \
+KEEP_LOGS_TOKEN=$(openssl rand -hex 32) relayer start
+```
+
+The knobs:
+
+- `KEEP_INTERVAL` (30s), `KEEP_MAX_AGE` (24h), `KEEP_MAX_LAG` (one cycle): when it checks and when it updates
+- `KEEP_HTTP_ADDR` (`127.0.0.1:8080`), set it empty to turn the server off
+- `KEEP_HEALTH_MAX_AGE` (30h): unhealthy once the trusted state is older than this
+- `KEEP_HEALTH_STALE` (30m): unhealthy if no tick succeeded for this long, which also catches a hung loop
+- `KEEP_LOGS_TOKEN`: unset means `/logs` is just a 404
+
+Endpoints, GET only:
+
+- `/healthz`, no auth. 200 when fine, 503 with JSON `reasons` when it's not (starting, frozen client, old trust, no recent good tick)
+- `/logs?n=200`, last N lines (max 2000), needs `Authorization: Bearer $KEEP_LOGS_TOKEN`
+
+Point an uptime monitor at `/healthz` every 5 to 15 min. You've got a day of slack before the 2 day trusting period runs out, so that's plenty.
+
+Only `/healthz` should be reachable by the monitor. Keep `/logs` private, or at least behind the token, and there's no TLS so put a proxy in front if it leaves the box.
+
+```sh
+curl -s localhost:8080/healthz
+curl -s -H "Authorization: Bearer $KEEP_LOGS_TOKEN" 'localhost:8080/logs?n=50'
+```
+
+### UptimeRobot
+
+[UptimeRobot](https://uptimerobot.com/) works fine for this. It needs to reach `/healthz` from the internet though, so put a proxy in front that only lets that one path out, with TLS. Caddy makes that short:
+
+```text
+keeper.example.com {
+    handle /healthz {
+        reverse_proxy 127.0.0.1:8080
+    }
+    respond 404
+}
+```
+
+Then in UptimeRobot:
+
+1. New monitor, type HTTP(s), URL `https://keeper.example.com/healthz`
+2. Interval 5 min (the free plan's minimum)
+3. Add an alert contact you'll actually see, like Slack, Telegram or SMS. Email is easy to miss and you've only got a day
+4. Optional: a keyword monitor on `"ok":true` instead, so a proxy that answers 200 by itself can't hide a dead keeper
+
+Any non 200 from `/healthz` means the keeper is down, stuck, or the client is frozen. Check `/logs` from the box (or over SSH) to see why.
+
+If you'd rather not expose a port, UptimeRobot also has heartbeat monitors where the service pings them instead. The keeper doesn't do that yet, it'd be a small addition.
+
 ## TODO, known gaps
 
 - BLS (`BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_`) in SP1

@@ -1,8 +1,9 @@
 # Builds params.json from the PsUshuai sandbox defaults, tuned to look like mainnet consensus.
 import json
+import os
 d = json.load(open('ushuai-sandbox-params.json'))
 d.update(consensus_committee_size=7000, consensus_threshold_size=4667,
-         blocks_per_cycle=16, minimal_block_delay="1")
+         blocks_per_cycle=16, minimal_block_delay=os.environ.get("SANDBOX_BLOCK_DELAY", "1"))
 # Extra bakers so every mainnet signature scheme shows up in attestations.
 d['bootstrap_accounts'] += [
     ["sppk7cT6TiY7VkhDV2pSbY2C9t49WrZLv36PDTU3T5wja1HjiCtnJPs", "4000000000000"],

@@ -7,6 +7,14 @@ cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
 : "${NETWORK_PRIVATE_KEY:?missing in .env}"
 
+# Own sandbox with 3s blocks. A network proof takes about 70s, and at 1s blocks Tezos outruns the
+# 3 cycle (48 block) window one proof can cover, which costs an extra catch up proof.
+TEZOS_CONTAINER=${TEZOS_CONTAINER:-tezos-real}
+TEZOS_PORT=${TEZOS_PORT:-58732}
+SANDBOX_BLOCK_DELAY=${SANDBOX_BLOCK_DELAY:-3}
+export TEZOS_CONTAINER TEZOS_PORT SANDBOX_BLOCK_DELAY
+tezos/sandbox/run.sh >/dev/null
+
 ANVIL_PORT=${ANVIL_PORT:-18555}
 FORK_URL=${FORK_URL:-https://ethereum-sepolia-rpc.publicnode.com}
 ETH_RPC=http://localhost:$ANVIL_PORT

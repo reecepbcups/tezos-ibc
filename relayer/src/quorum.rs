@@ -33,7 +33,7 @@ pub fn trim(cfg: &Config, full: Input) -> Input {
     match subset(cfg, &full) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("warn: quorum subset failed, sending all attestations: {e:#}");
+            elogln!("quorum subset failed, sending all attestations: {e:#}");
             full
         }
     }

@@ -53,9 +53,16 @@ pub fn decode_nft(p: &Packet) -> Result<NftTransfer> {
     ensure!(p.dest_port == NFT_PORT, "dest port {:?}", p.dest_port);
     ensure!(p.version == NFT_VERSION, "version {:?}", p.version);
     ensure!(p.encoding == NFT_ENCODING, "encoding {:?}", p.encoding);
-    ensure!(p.value.len() == 64, "value is {} bytes, want 64", p.value.len());
+    ensure!(
+        p.value.len() == 64,
+        "value is {} bytes, want 64",
+        p.value.len()
+    );
     // TezosNFT hashes abi.encode(tokenId, recipient), so dirty address padding could never be proven.
-    ensure!(p.value[32..44].iter().all(|b| *b == 0), "address padding not zero");
+    ensure!(
+        p.value[32..44].iter().all(|b| *b == 0),
+        "address padding not zero"
+    );
     let recipient = Address::from_slice(&p.value[44..]);
     // _mint reverts on the zero address
     ensure!(!recipient.is_zero(), "zero recipient");
@@ -118,8 +125,8 @@ impl Rpc {
             if attempt == RPC_ATTEMPTS {
                 return Err(err.context(format!("GET {url}, {attempt} attempts")));
             }
-            eprintln!(
-                "warn: GET {url}: {err:#}, retry {attempt}/{} in {delay:?}",
+            elogln!(
+                "GET {url}: {err:#}, retry {attempt}/{} in {delay:?}",
                 RPC_ATTEMPTS - 1
             );
             tokio::time::sleep(delay).await;
@@ -139,11 +146,15 @@ impl Rpc {
 
     pub async fn chain_id(&self) -> Result<[u8; 4]> {
         let s = self.get("/chains/main/chain_id").await?;
-        Ok(tezos_consensus::chain_id_from_b58(s.as_str().unwrap_or_default())?)
+        Ok(tezos_consensus::chain_id_from_b58(
+            s.as_str().unwrap_or_default(),
+        )?)
     }
 
     pub async fn constant(&self, name: &str) -> Result<i64> {
-        let c = self.get("/chains/main/blocks/head/context/constants").await?;
+        let c = self
+            .get("/chains/main/blocks/head/context/constants")
+            .await?;
         c[name].as_i64().ok_or(anyhow!("no constant {name}"))
     }
 
@@ -207,10 +218,12 @@ impl Rpc {
         } else {
             format!("locked: {}", i64::from_str_radix(fit[2], 16)?)
         };
-        let pred_round =
-            -1 - i64::from(i32::from_be_bytes(hex::decode(fit[3])?.try_into().map_err(
-                |_| anyhow!("bad predecessor round"),
-            )?));
+        let pred_round = -1
+            - i64::from(i32::from_be_bytes(
+                hex::decode(fit[3])?
+                    .try_into()
+                    .map_err(|_| anyhow!("bad predecessor round"))?,
+            ));
         let round = i64::from_str_radix(fit[4], 16)?;
         let minus = if pred_round != 0 { "-" } else { "" };
         let ops: usize = self.op_hashes(level).await?.iter().map(Vec::len).sum();
@@ -295,7 +308,12 @@ fn comb(v: &Value) -> Vec<&Value> {
         return a.iter().flat_map(comb_tail).collect();
     }
     if v["prim"] == "Pair" {
-        return v["args"].as_array().into_iter().flatten().flat_map(comb_tail).collect();
+        return v["args"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .flat_map(comb_tail)
+            .collect();
     }
     vec![v]
 }
@@ -312,7 +330,11 @@ fn comb_tail(v: &Value) -> Vec<&Value> {
 fn packets_in(meta: &Value, core: &str, client: &str, level: i32) -> Vec<Packet> {
     let mut sends = vec![];
     let mut events = vec![];
-    for r in meta["internal_operation_results"].as_array().into_iter().flatten() {
+    for r in meta["internal_operation_results"]
+        .as_array()
+        .into_iter()
+        .flatten()
+    {
         if r["result"]["status"] != "applied" {
             continue;
         }
@@ -332,7 +354,8 @@ fn packets_in(meta: &Value, core: &str, client: &str, level: i32) -> Vec<Packet>
         .iter()
         .zip(&events)
         .filter_map(|(s, e)| {
-            if s.len() != 7 || e.len() != 3 || s[0]["string"] != client || e[0]["string"] != client {
+            if s.len() != 7 || e.len() != 3 || s[0]["string"] != client || e[0]["string"] != client
+            {
                 return None;
             }
             Some(Packet {
@@ -373,7 +396,10 @@ pub async fn build_input(
         .ok_or(anyhow!("level outside era"))?;
 
     let sampler_state_proof = rpc
-        .proof(trusted.level, &format!("cycle/{cycle}/delegate_sampler_state"))
+        .proof(
+            trusted.level,
+            &format!("cycle/{cycle}/delegate_sampler_state"),
+        )
         .await?;
     let seed_proof = rpc
         .proof(trusted.level, &format!("cycle/{cycle}/random_seed"))
@@ -409,7 +435,10 @@ pub async fn build_input(
     for path in paths {
         let key = hex::encode(bytes_key_hash(path));
         let proof = rpc
-            .proof(new_level, &format!("big_maps/index/{big_map_id}/contents/{key}/data"))
+            .proof(
+                new_level,
+                &format!("big_maps/index/{big_map_id}/contents/{key}/data"),
+            )
             .await?;
         new_root = Some(proof.hash().map_err(|e| anyhow!("{e:?}"))?.1);
         commitments.push(CommitmentProof {
@@ -487,14 +516,34 @@ mod tests {
         });
         let cases: Vec<(&str, Packet, Option<NftTransfer>)> = vec![
             ("valid", packet(|_| {}), ok),
-            ("other source port", packet(|p| p.source_port = "transfer".into()), None),
-            ("other dest port", packet(|p| p.dest_port = "x".into()), None),
-            ("other version", packet(|p| p.version = "fa2-nft-2".into()), None),
-            ("other encoding", packet(|p| p.encoding = "application/json".into()), None),
+            (
+                "other source port",
+                packet(|p| p.source_port = "transfer".into()),
+                None,
+            ),
+            (
+                "other dest port",
+                packet(|p| p.dest_port = "x".into()),
+                None,
+            ),
+            (
+                "other version",
+                packet(|p| p.version = "fa2-nft-2".into()),
+                None,
+            ),
+            (
+                "other encoding",
+                packet(|p| p.encoding = "application/json".into()),
+                None,
+            ),
             ("empty value", packet(|p| p.value = vec![]), None),
             ("short value", packet(|p| p.value.truncate(63)), None),
             ("long value", packet(|p| p.value.push(0)), None),
-            ("dirty padding", packet(|p| p.value = value(7, 1, 0xaa)), None),
+            (
+                "dirty padding",
+                packet(|p| p.value = value(7, 1, 0xaa)),
+                None,
+            ),
             ("zero recipient", packet(|p| p.value = value(7, 0, 0)), None),
         ];
         for (name, p, want) in cases {
@@ -524,11 +573,36 @@ mod tests {
     #[test]
     fn packets_in_skips_junk() {
         let cases = vec![
-            ("valid", send("eth-0", json!({"bytes": "ab"})), event("eth-0", "3"), Some(3)),
-            ("other client", send("other", json!({"bytes": "ab"})), event("other", "3"), None),
-            ("value not bytes", send("eth-0", json!({"int": "1"})), event("eth-0", "3"), None),
-            ("bad hex", send("eth-0", json!({"bytes": "zz"})), event("eth-0", "3"), None),
-            ("bad seq", send("eth-0", json!({"bytes": "ab"})), event("eth-0", "x"), None),
+            (
+                "valid",
+                send("eth-0", json!({"bytes": "ab"})),
+                event("eth-0", "3"),
+                Some(3),
+            ),
+            (
+                "other client",
+                send("other", json!({"bytes": "ab"})),
+                event("other", "3"),
+                None,
+            ),
+            (
+                "value not bytes",
+                send("eth-0", json!({"int": "1"})),
+                event("eth-0", "3"),
+                None,
+            ),
+            (
+                "bad hex",
+                send("eth-0", json!({"bytes": "zz"})),
+                event("eth-0", "3"),
+                None,
+            ),
+            (
+                "bad seq",
+                send("eth-0", json!({"bytes": "ab"})),
+                event("eth-0", "x"),
+                None,
+            ),
         ];
         for (name, s, e, want) in cases {
             let meta = json!({"internal_operation_results": [s, e]});

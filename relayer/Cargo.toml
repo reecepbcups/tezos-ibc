@@ -10,11 +10,13 @@ tezos-consensus = { path = "../sp1/crates/tezos-consensus" }
 tezos-sampler = { path = "../sp1/crates/tezos-sampler" }
 sp1-sdk = { version = "~6.8", features = ["network"] }
 alloy = { version = "1", features = ["full"] }
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time", "net", "io-util"] }
 reqwest = { version = "0.12", features = ["json"] }
 serde_json = "1"
 anyhow = "1"
 hex = "0.4"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+tracing = "0.1"
 tracing-subscriber = { version = "0.3.23", features = ["chrono", "env-filter"] }
 
 [features]

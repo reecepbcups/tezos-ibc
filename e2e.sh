@@ -66,11 +66,9 @@ echo "client $CLIENT nft $NFT"
 PINNED=$(cast call "$CLIENT" "BIG_MAP_ID()(uint64)" --rpc-url "$ETH_RPC")
 [ "$PINNED" = "$COMMITMENTS_BIG_MAP" ] || { echo "FAIL: client pins big_map $PINNED, ibc_core uses $COMMITMENTS_BIG_MAP"; exit 1; }
 
-echo "== relay"
-relayer run
-
-# Second packet sent after the anchor, so the client has to advance to a newer level to prove it.
-echo "== bridge #8 after anchor, relay again"
+# #7 was sent before the anchor, #8 goes after it. One relay run then has to advance the client
+# past the anchor and prove both commitments in a single proof.
+echo "== bridge #8 after anchor"
 ALICE=tz1KqTpEZ7Yob7QbPE4Hy4Wo8fHG8LhKxZSx
 # Value at a big_map key on head, or empty if absent.
 bm_get() { curl -sf "$TEZOS_RPC/chains/main/blocks/head/context/big_maps/$1/$(tz hash data "$2" of type "$3" | sed -n 's/^Script-expression-ID-Hash: //p')"; }
@@ -90,6 +88,7 @@ lvl() { curl -sf "$TEZOS_RPC/chains/main/blocks/head/header" | sed -n 's/.*"leve
 SENT=$(lvl)
 until [ "$(lvl)" -ge $((SENT + 4)) ]; do sleep 1; done
 BEFORE=$(cast call "$CLIENT" "latestLevel()(uint64)" --rpc-url "$ETH_RPC")
+echo "== relay #7 and #8 together"
 relayer run
 AFTER=$(cast call "$CLIENT" "latestLevel()(uint64)" --rpc-url "$ETH_RPC")
 OWNER8=$(cast call "$NFT" "ownerOf(uint256)(address)" 8 --rpc-url "$ETH_RPC")

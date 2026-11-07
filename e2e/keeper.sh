@@ -1,6 +1,6 @@
 #!/bin/sh
-# `relayer keep` end to end: refreshes the client with no packets, relays a new NFT, rides out a
-# Tezos RPC outage, and without it the client expires. Plus deploy.sh's port check failing.
+# `relayer start` end to end: refreshes the client with no packets, relays a new NFT, rides out a
+# Tezos RPC outage, and without it the client expires. Also its /healthz and /logs endpoints. Plus deploy.sh's port check failing.
 # Short thresholds so it runs in a few minutes:
 #   TEZOS_CONTAINER=tezos-c TEZOS_PORT=38732 ANVIL_PORT=38546 e2e/keeper.sh
 TEZOS_CONTAINER=${TEZOS_CONTAINER:-tezos-c}
@@ -15,6 +15,12 @@ level() { call "$CLIENT" "latestLevel()(uint64)"; }
 # Waits up to $1 seconds for the rest of the args to succeed.
 within() { n=$1; shift; while [ "$n" -gt 0 ]; do "$@" && return 0; sleep 1; n=$((n - 1)); done; return 1; }
 level_above() { [ "$(level)" -gt "$1" ]; }
+HTTP=127.0.0.1:${KEEP_HTTP_PORT:-38080}
+LOGS_TOKEN=e2e-token
+# get <path> <want status> [curl args..]: body goes to $WORK/http.out
+get() { p=$1; want=$2; shift 2; [ "$(curl -s -m 5 -o "$WORK/http.out" -w '%{http_code}' "$@" "http://$HTTP$p")" = "$want" ]; }
+# health <want status> <body substring>
+health() { get /healthz "$1" && grep -q "$2" "$WORK/http.out"; }
 
 start_infra
 # Own copy: the cargo target dir may be shared, and other e2e scripts rebuild with other flags.
@@ -29,13 +35,27 @@ check "client pins big_map $COMMITMENTS_BIG_MAP" [ "$(call "$CLIENT" "BIG_MAP_ID
 echo "client $CLIENT nft $NFT, trusting period $(call "$CLIENT" "TRUSTING_PERIOD()(uint64)")s"
 
 # Lag check off, so only the age threshold can trigger an update without packets.
-KEEP_INTERVAL=2s KEEP_MAX_AGE=30s KEEP_MAX_LAG=1000000 "$BIN" keep >"$KLOG" 2>&1 &
+# Stale after 20s without a good tick, so the outage in (c) trips /healthz.
+KEEP_INTERVAL=2s KEEP_MAX_AGE=30s KEEP_MAX_LAG=1000000 KEEP_HTTP_ADDR=$HTTP KEEP_HEALTH_STALE=20s \
+  KEEP_LOGS_TOKEN=$LOGS_TOKEN "$BIN" start >"$KLOG" 2>&1 &
 KEEPER=$!
-trap 'kill $KEEPER 2>/dev/null || true; docker unpause "$TEZOS_CONTAINER" >/dev/null 2>&1 || true' EXIT
+KEEPER2=
+trap 'kill $KEEPER $KEEPER2 2>/dev/null || true; docker unpause "$TEZOS_CONTAINER" >/dev/null 2>&1 || true' EXIT
 echo "keeper pid $KEEPER, log $KLOG"
 
 # deploy.sh bridged token 7 before the anchor, the keeper picks it up right away.
 check "keeper relays token $TOKEN_ID" within 120 owner_is_recipient "$TOKEN_ID"
+
+# http: a relay can outlast KEEP_HEALTH_STALE, so poll for healthy.
+check "healthz 200 while healthy" within 30 health 200 '"ok":true'
+sed 's/^/    /' "$WORK/http.out"
+check "logs 401 without token" get /logs 401
+check "logs 401 with wrong token" get /logs 401 -H "Authorization: Bearer nope"
+logs_ok() { get "/logs?n=50" 200 -H "Authorization: Bearer $LOGS_TOKEN" && grep -q "^20[0-9-]*T[0-9:]* INFO keep:" "$WORK/http.out"; }
+check "logs 200 with token, has timestamped keep: lines" logs_ok
+tail -2 "$WORK/http.out" | cut -c1-160 | sed 's/^/    /'
+check "unknown path 404" get /nope 404
+check "POST healthz 405" get /healthz 405 -X POST
 
 # (a) no packets: next update must wait for the age threshold.
 L0=$(level); T0=$(date +%s)
@@ -55,13 +75,16 @@ docker pause "$TEZOS_CONTAINER" >/dev/null
 echo "    tezos paused"
 sleep 45
 check "(c) keeper alive during outage" kill -0 "$KEEPER"
-check "(c) keeper logged RPC errors" grep -q "warn: GET\|keep: error" "$KLOG"
-grep "warn: GET\|keep: error" "$KLOG" | tail -2 | cut -c1-200 | sed 's/^/    /'
+check "(c) keeper logged RPC errors" grep -q "WARN GET\|keep: error" "$KLOG"
+check "(c) healthz 503, no successful tick" within 15 health 503 "no successful tick"
+sed 's/^/    /' "$WORK/http.out" | cut -c1-300
+grep "WARN GET\|keep: error" "$KLOG" | tail -2 | cut -c1-200 | sed 's/^/    /'
 docker unpause "$TEZOS_CONTAINER" >/dev/null
 echo "    tezos unpaused"
 wait_level $(($(head_level) + 2))
 bridge 10
 check "(c) keeper resumes and relays token 10" within 150 owner_is_recipient 10
+check "(c) healthz back to 200" within 30 health 200 '"ok":true'
 
 TS=$(call "$CLIENT" "stateTimestamp(uint64)(uint64)" "$(level)" | cut -d" " -f1)
 AGE=$(($(eth_now) - TS))
@@ -81,6 +104,15 @@ if "$BIN" run >"$OUT" 2>&1; then RUN_OK=1; else RUN_OK=0; fi
 expired() { [ "$RUN_OK" = 0 ] && grep -qi "$(cast sig 'TrustExpired()')" "$OUT"; }
 check "(d) without keeper, update reverts TrustExpired after warp" expired
 tail -1 "$OUT" | cut -c1-200 | sed 's/^/    /'
+
+# (d) a keeper now sees the stale trust on /healthz. No token, so no /logs.
+KEEP_INTERVAL=2s KEEP_MAX_AGE=30s KEEP_HTTP_ADDR=$HTTP KEEP_HEALTH_MAX_AGE=60s \
+  "$BIN" start >"$WORK/keep2.log" 2>&1 &
+KEEPER2=$!
+check "(d) healthz 503, trusted state too old" within 60 health 503 "trusted state age"
+sed 's/^/    /' "$WORK/http.out" | cut -c1-300
+check "(d) logs 404 without KEEP_LOGS_TOKEN" get /logs 404 -H "Authorization: Bearer $LOGS_TOKEN"
+kill -INT "$KEEPER2"; wait "$KEEPER2" || true
 
 # deploy.sh's port check: a core whose fa2-nft port is bound elsewhere must fail verify.sh.
 tz originate contract ibc_core_bad transferring 0 from bootstrap1 running /home/tezos/build/ibc_core.tz \

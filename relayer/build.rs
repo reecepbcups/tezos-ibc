@@ -6,7 +6,11 @@ fn main() {
     let network = std::env::var("TEZOS_NETWORK").unwrap_or_else(|_| "sandbox".into());
     // main.rs refuses to run with a different TEZOS_NETWORK than the ELF was built for.
     println!("cargo:rustc-env=TEZOS_NETWORK_BUILT={network}");
-    let mut features = if network == "mainnet" { vec!["mainnet".into()] } else { vec![] };
+    let mut features = if network == "mainnet" {
+        vec!["mainnet".into()]
+    } else {
+        vec![]
+    };
     // e2e/protocol.sh: a program that must reject this chain's protocol.
     println!("cargo:rerun-if-env-changed=WRONG_PROTOCOL_PIN");
     if std::env::var("WRONG_PROTOCOL_PIN").is_ok_and(|v| v == "1") {
@@ -31,7 +35,10 @@ fn main() {
             ..Default::default()
         }
     } else {
-        BuildArgs { features, ..Default::default() }
+        BuildArgs {
+            features,
+            ..Default::default()
+        }
     };
     build_program_with_args("../sp1/program", args);
 }

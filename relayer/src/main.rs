@@ -3,18 +3,26 @@
 //!
 //! `relayer vkey` prints the program vkey, `relayer anchor` the client deploy args.
 //! `relayer` (or `relayer run`) relays.
-//! `relayer keep` relays forever and keeps the client fresh, see `keep`.
+//! `relayer start` relays forever and keeps the client fresh, see `keep`.
 //! `relayer prove <trusted> <new> [seq..]` prints a proof without submitting, see `prove`.
 //! `relayer profile ..` executes one update and prints cycles per phase, see profile.rs.
 //! SP1_PROVER=mock|cpu|network picks the prover (default mock). Mock proofs are empty bytes and
 //! only pass the local MockVerifier; cpu and network make real Groth16 proofs.
 
+// Before the mods so they can use them. All go through logs.rs.
+macro_rules! logln { ($($t:tt)*) => { tracing::info!($($t)*) }; }
+macro_rules! elogln { ($($t:tt)*) => { tracing::warn!($($t)*) }; }
+macro_rules! errln { ($($t:tt)*) => { tracing::error!($($t)*) }; }
+
+mod health;
+mod logs;
 mod profile;
 mod quorum;
 mod tezos;
 
 use std::collections::HashSet;
-use std::time::Duration;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use alloy::primitives::{Address, Bytes, FixedBytes};
 use alloy::providers::ProviderBuilder;
@@ -28,13 +36,12 @@ use tezos::{build_input, commitment_path, decode_nft, NftTransfer, Packet, Rpc, 
 
 const ELF: sp1_sdk::Elf = include_elf!("tezos-lc-program");
 /// TEZOS_NETWORK=sandbox|mainnet (default sandbox). Must match the ELF's `mainnet` feature.
-static CFG: std::sync::LazyLock<tezos_lc::Config> = std::sync::LazyLock::new(|| {
-    match std::env::var("TEZOS_NETWORK").as_deref() {
+static CFG: std::sync::LazyLock<tezos_lc::Config> =
+    std::sync::LazyLock::new(|| match std::env::var("TEZOS_NETWORK").as_deref() {
         Err(_) | Ok("sandbox") => tezos_lc::SANDBOX,
         Ok("mainnet") => tezos_lc::MAINNET,
         Ok(other) => panic!("unknown TEZOS_NETWORK {other:?}, want sandbox or mainnet"),
-    }
-});
+    });
 /// anvil account 0
 const ANVIL_KEY: &str = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 
@@ -68,18 +75,20 @@ fn env_req(k: &str) -> Result<String> {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
     // sp1-sdk logs the network explorer link per proof request at info. RUST_LOG overrides.
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "sp1_sdk=info".into()),
-        )
-        .with_writer(std::io::stderr)
-        .with_timer(tracing_subscriber::fmt::time::ChronoUtc::new(
-            "%Y-%m-%dT%H:%M:%S".into(),
-        ))
-        .init();
+    logs::init(&[
+        env("ETH_RPC", "http://localhost:18545"),
+        env("TEZOS_RPC", "http://localhost:8732"),
+    ]);
+    if let Err(e) = cli().await {
+        // Logged rather than returned, so it gets the same format and redaction.
+        errln!("{e:#}");
+        std::process::exit(1);
+    }
+}
+
+async fn cli() -> Result<()> {
     let network = env("TEZOS_NETWORK", "sandbox");
     if network != env!("TEZOS_NETWORK_BUILT") {
         bail!(
@@ -101,16 +110,16 @@ async fn main() -> Result<()> {
         }
         "run" => {
             // So whoever deployed the client can check it pins this program.
-            println!("program vkey {vkey}");
+            logln!("program vkey {vkey}");
             run(&prover, &pk).await
         }
-        "keep" => {
-            println!("program vkey {vkey}");
+        "start" => {
+            logln!("program vkey {vkey}");
             keep(&prover, &pk).await
         }
         "prove" => prove(&prover, &pk).await,
         "profile" => profile::profile(&prover).await,
-        c => bail!("unknown command {c}, want run, keep, prove, profile, vkey or anchor"),
+        c => bail!("unknown command {c}, want run, start, prove, profile, vkey or anchor"),
     }
 }
 
@@ -155,7 +164,8 @@ async fn prove(prover: &EnvProver, pk: &EnvProvingKey) -> Result<()> {
         bail!("usage: relayer prove <trusted_level> <new_level> [seq..]");
     }
     let rpc = Rpc::new(&env("TEZOS_RPC", "http://localhost:8732"));
-    let provider = ProviderBuilder::new().connect_http(env("ETH_RPC", "http://localhost:18545").parse()?);
+    let provider =
+        ProviderBuilder::new().connect_http(env("ETH_RPC", "http://localhost:18545").parse()?);
     let client = TezosLightClient::new(env_req("CLIENT")?.parse::<Address>()?, &provider);
     let level: u64 = args[0].parse().context("trusted_level")?;
     let trusted = Trusted {
@@ -191,7 +201,7 @@ async fn run(prover: &EnvProver, pk: &EnvProvingKey) -> Result<()> {
     let client = TezosLightClient::new(env_req("CLIENT")?.parse::<Address>()?, &provider);
     let nft = TezosNFT::new(env_req("NFT")?.parse::<Address>()?, &provider);
     if client.frozen().call().await? {
-        eprintln!("warn: client frozen: deliveries paused until admin re-anchor");
+        elogln!("client frozen: deliveries paused until admin re-anchor");
         return Ok(());
     }
 
@@ -223,18 +233,21 @@ async fn run(prover: &EnvProver, pk: &EnvProvingKey) -> Result<()> {
     let found = rpc
         .find_packets(&core, &source_client, &pending, final_level, start_level)
         .await?;
-    for seq in pending.iter().filter(|s| !found.iter().any(|p| p.seq == **s)) {
-        eprintln!("warn: packet {seq} not found in levels {start_level}..={final_level}, skipping");
+    for seq in pending
+        .iter()
+        .filter(|s| !found.iter().any(|p| p.seq == **s))
+    {
+        elogln!("packet {seq} not found in levels {start_level}..={final_level}, skipping");
     }
     // Anyone can send on our client, so junk is skipped rather than blocking later packets.
     let mut packets: Vec<(Packet, NftTransfer)> = vec![];
     for p in found {
         match decode_nft(&p) {
             Ok(t) => packets.push((p, t)),
-            Err(e) => eprintln!("warn: packet {} isn't for TezosNFT, skipping: {e}", p.seq),
+            Err(e) => elogln!("packet {} isn't for TezosNFT, skipping: {e}", p.seq),
         }
     }
-    println!(
+    logln!(
         "pending packets: {:?}",
         packets.iter().map(|(p, _)| p.seq).collect::<Vec<_>>()
     );
@@ -259,7 +272,7 @@ async fn run(prover: &EnvProver, pk: &EnvProvingKey) -> Result<()> {
         // attested level n+1; its attestations are in n+2 <= head
         let attested = (head - 1).min(last_provable);
         if attested < trusted.level + 2 {
-            println!("waiting for blocks past {}", trusted.level);
+            logln!("waiting for blocks past {}", trusted.level);
             tokio::time::sleep(Duration::from_secs(2)).await;
             continue;
         }
@@ -268,7 +281,12 @@ async fn run(prover: &EnvProver, pk: &EnvProvingKey) -> Result<()> {
         let mut to_prove = vec![];
         for (p, _) in packets.iter().filter(|(p, _)| p.level <= new_level) {
             let path = commitment_path(&source_client, p.seq);
-            if client.commitmentOf(path.clone().into()).call().await?.is_zero() {
+            if client
+                .commitmentOf(path.clone().into())
+                .call()
+                .await?
+                .is_zero()
+            {
                 to_prove.push(path);
             }
         }
@@ -276,7 +294,7 @@ async fn run(prover: &EnvProver, pk: &EnvProvingKey) -> Result<()> {
         let input = build_input(&rpc, &trusted, big_map_id, attested, &CFG, &to_prove).await?;
         if let Ok(p) = std::env::var("DUMP_INPUT") {
             std::fs::write(&p, serde_json::to_vec(&input)?)?;
-            println!("wrote {p}");
+            logln!("wrote {p}");
         }
         // Native run first: same code as the program, fails fast with a readable error.
         let pv = tezos_lc::verify(&CFG, &input).map_err(|e| anyhow!("input rejected: {e:?}"))?;
@@ -284,7 +302,7 @@ async fn run(prover: &EnvProver, pk: &EnvProvingKey) -> Result<()> {
         let mut stdin = SP1Stdin::new();
         stdin.write(&input);
         let (out, report) = prover.execute(ELF, stdin.clone()).await?;
-        println!(
+        logln!(
             "update {} -> {} ({} commitments): {} cycles",
             trusted.level,
             new_level,
@@ -296,7 +314,10 @@ async fn run(prover: &EnvProver, pk: &EnvProvingKey) -> Result<()> {
         }
         let proof = prover.prove(pk, stdin).groth16().await?;
         let receipt = client
-            .update(Bytes::from(proof.public_values.to_vec()), Bytes::from(proof.bytes()))
+            .update(
+                Bytes::from(proof.public_values.to_vec()),
+                Bytes::from(proof.bytes()),
+            )
             .send()
             .await?
             .get_receipt()
@@ -319,7 +340,10 @@ async fn run(prover: &EnvProver, pk: &EnvProvingKey) -> Result<()> {
                 .await?;
             // Read at a final level, so a mismatch won't fix itself by waiting.
             if proven != FixedBytes(p.commitment) {
-                eprintln!("warn: packet {} proven commitment {proven} differs, skipping", p.seq);
+                elogln!(
+                    "packet {} proven commitment {proven} differs, skipping",
+                    p.seq
+                );
                 done.insert(p.seq);
                 continue;
             }
@@ -328,7 +352,7 @@ async fn run(prover: &EnvProver, pk: &EnvProvingKey) -> Result<()> {
             if let Err(e) = recv.call().await {
                 match e.as_revert_data() {
                     Some(data) => {
-                        eprintln!("warn: recvPacket {} would revert ({data}), skipping", p.seq);
+                        elogln!("recvPacket {} would revert ({data}), skipping", p.seq);
                         done.insert(p.seq);
                         continue;
                     }
@@ -338,12 +362,18 @@ async fn run(prover: &EnvProver, pk: &EnvProvingKey) -> Result<()> {
             let receipt = recv.send().await?.get_receipt().await?;
             done.insert(p.seq);
             if !receipt.status() {
-                eprintln!("warn: recvPacket {} reverted: {:?}", p.seq, receipt.transaction_hash);
+                elogln!(
+                    "recvPacket {} reverted: {:?}",
+                    p.seq,
+                    receipt.transaction_hash
+                );
                 continue;
             }
-            println!(
+            logln!(
                 "delivered packet {}: token {} to {}",
-                p.seq, t.token_id, t.recipient
+                p.seq,
+                t.token_id,
+                t.recipient
             );
         }
 
@@ -358,25 +388,25 @@ async fn run(prover: &EnvProver, pk: &EnvProvingKey) -> Result<()> {
     Ok(())
 }
 
-/// Settings for `relayer keep`, read once at startup.
+/// Settings for `relayer start`, read once at startup.
 struct KeepConfig {
     /// KEEP_INTERVAL: time between checks
     interval: Duration,
-    /// KEEP_MAX_AGE: update once the trusted state is this old. Default 6h leaves most of the
-    /// 2 day TRUSTING_PERIOD as margin for RPC outages.
+    /// KEEP_MAX_AGE: update once the trusted state is this old. Default 24h, since each proof
+    /// costs a flat ~0.43 PROVE, and it still leaves a day of the 2 day TRUSTING_PERIOD for outages.
     max_age: Duration,
     /// KEEP_MAX_LAG: update once head is this many blocks past the client. Proofs only reach
     /// consensus_rights_delay+1 cycles ahead, so the default is one cycle.
     max_lag: i32,
 }
 
-/// `relayer keep`: loops until ctrl-c. Each tick relays pending packets and, with none, still
+/// `relayer start`: loops until ctrl-c. Each tick relays pending packets and, with none, still
 /// updates the client when its trusted state gets old, so it never hits TrustExpired or falls
-/// out of proof range. Errors, transient or not, are logged and retried with backoff.
+/// out of proof range. A relay resets that age, so refreshes only cost proofs on quiet days. Errors, transient or not, are logged and retried with backoff.
 async fn keep(prover: &EnvProver, pk: &EnvProvingKey) -> Result<()> {
     let cfg = KeepConfig {
         interval: parse_duration(&env("KEEP_INTERVAL", "30s")).context("KEEP_INTERVAL")?,
-        max_age: parse_duration(&env("KEEP_MAX_AGE", "6h")).context("KEEP_MAX_AGE")?,
+        max_age: parse_duration(&env("KEEP_MAX_AGE", "24h")).context("KEEP_MAX_AGE")?,
         max_lag: env("KEEP_MAX_LAG", &CFG.era.blocks_per_cycle.to_string())
             .parse()
             .context("KEEP_MAX_LAG")?,
@@ -395,9 +425,11 @@ async fn keep(prover: &EnvProver, pk: &EnvProvingKey) -> Result<()> {
             cfg.max_age
         );
     }
-    println!(
+    logln!(
         "keep: interval {:?}, max age {:?}, max lag {} blocks, trusting period {period}s",
-        cfg.interval, cfg.max_age, cfg.max_lag
+        cfg.interval,
+        cfg.max_age,
+        cfg.max_lag
     );
 
     use alloy::providers::Provider;
@@ -410,21 +442,51 @@ async fn keep(prover: &EnvProver, pk: &EnvProvingKey) -> Result<()> {
         honest: vec![],
     };
 
+    let health = Arc::new(Mutex::new(health::Health::new(Instant::now())));
+    let addr = env("KEEP_HTTP_ADDR", "127.0.0.1:8080");
+    let server = if addr.is_empty() {
+        None
+    } else {
+        let limits = health::Limits {
+            max_age: parse_duration(&env("KEEP_HEALTH_MAX_AGE", "30h"))
+                .context("KEEP_HEALTH_MAX_AGE")?,
+            stale: parse_duration(&env("KEEP_HEALTH_STALE", "30m")).context("KEEP_HEALTH_STALE")?,
+        };
+        // Empty counts as unset, so a blank env line can't mean "no password".
+        let token = std::env::var("KEEP_LOGS_TOKEN")
+            .ok()
+            .filter(|t| !t.is_empty());
+        logln!(
+            "keep: http on {addr}, /logs {}",
+            if token.is_some() { "on" } else { "off" }
+        );
+        let s = health::Server {
+            health: health.clone(),
+            limits,
+            token,
+        };
+        Some(health::start(&addr, s).await?)
+    };
+
     let mut stop = std::pin::pin!(tokio::signal::ctrl_c());
     // Seqs received, or given up on by run. Not looked at again.
     let mut settled = HashSet::new();
     let mut failures = 0u32;
     loop {
         let wait = tokio::select! {
-            r = keep_tick(prover, pk, &cfg, &mut settled, &mut watch) => match r {
+            r = keep_tick(prover, pk, &cfg, &mut settled, &mut watch, &health) => match r {
                 Ok(()) => {
                     failures = 0;
+                    let mut h = lock(&health);
+                    h.last_ok = Some(Instant::now());
+                    h.last_error = None;
                     cfg.interval
                 }
                 Err(e) => {
                     failures += 1;
                     let backoff = Duration::from_secs(2 << failures.min(7)).min(Duration::from_secs(300));
-                    eprintln!("keep: error (failure {failures}), retrying in {backoff:?}: {e:#}");
+                    errln!("keep: error (failure {failures}), retrying in {backoff:?}: {e:#}");
+                    lock(&health).last_error = Some(format!("{e:#}"));
                     backoff
                 }
             },
@@ -435,8 +497,16 @@ async fn keep(prover: &EnvProver, pk: &EnvProvingKey) -> Result<()> {
             _ = &mut stop => break,
         }
     }
-    println!("keep: ctrl-c, stopping");
+    if let Some(s) = server {
+        s.abort();
+    }
+    logln!("keep: ctrl-c, stopping");
     Ok(())
+}
+
+/// The health lock is never held across await, so a poisoned one only means a panicked tick.
+fn lock(h: &Mutex<health::Health>) -> std::sync::MutexGuard<'_, health::Health> {
+    h.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 /// One keeper check, then `run` if there are packets to relay or the client needs refreshing.
@@ -446,6 +516,7 @@ async fn keep_tick(
     cfg: &KeepConfig,
     settled: &mut HashSet<u64>,
     watch: &mut Watch,
+    health: &Mutex<health::Health>,
 ) -> Result<()> {
     use alloy::providers::Provider;
     let rpc = Rpc::new(&env("TEZOS_RPC", "http://localhost:8732"));
@@ -457,11 +528,14 @@ async fn keep_tick(
     let nft = TezosNFT::new(env_req("NFT")?.parse::<Address>()?, &provider);
 
     // Same check run does, but here it also stops watcher duty: update reverts once frozen.
-    if client.frozen().call().await? {
-        eprintln!("warn: client frozen: deliveries paused until admin re-anchor");
+    let frozen = client.frozen().call().await?;
+    lock(health).frozen = frozen;
+    if frozen {
+        elogln!("client frozen: deliveries paused until admin re-anchor");
         return Ok(());
     }
     if watch_states(prover, pk, watch).await? {
+        lock(health).frozen = true;
         return Ok(());
     }
 
@@ -495,7 +569,13 @@ async fn keep_tick(
         .map_or(0, |b| b.header.timestamp);
     let age = wall.max(block_ts).saturating_sub(trusted_ts);
     let lag = head - i32::try_from(level)?;
-    println!("keep: client level {level} age {age}s, head {head} lag {lag}, pending {pending:?}");
+    logln!("keep: client level {level} age {age}s, head {head} lag {lag}, pending {pending:?}");
+    {
+        let mut h = lock(health);
+        h.client_level = Some(level);
+        h.head_level = Some(head);
+        h.age = Some((age, Instant::now()));
+    }
 
     let tick = Tick {
         pending: !pending.is_empty(),
@@ -508,24 +588,24 @@ async fn keep_tick(
     let reason = match decide(&tick, cfg) {
         Decision::Relay(r) => r,
         Decision::Skip(r) => {
-            println!("keep: skip: {r}");
+            logln!("keep: skip: {r}");
             return Ok(());
         }
         Decision::Idle => return Ok(()),
     };
-    println!("keep: relaying, {reason}");
+    logln!("keep: relaying, {reason}");
     run(prover, pk).await?;
 
     // run returns once each packet is delivered or skipped. Skipped ones would only make every
     // later tick update again, so settle them too.
     for seq in pending {
         if !nft.received(seq).call().await? {
-            eprintln!("warn: keep: packet {seq} not delivered, run skipped it, not retrying");
+            elogln!("keep: packet {seq} not delivered, run skipped it, not retrying");
         }
         settled.insert(seq);
     }
     let new_level = client.latestLevel().call().await?;
-    println!("keep: client level {level} -> {new_level}");
+    logln!("keep: client level {level} -> {new_level}");
     Ok(())
 }
 
@@ -579,7 +659,7 @@ async fn watch_states(prover: &EnvProver, pk: &EnvProvingKey, w: &mut Watch) -> 
             w.honest.sort_unstable();
             continue;
         }
-        eprintln!(
+        errln!(
             "!!! keep: MISBEHAVIOUR: client state {level} is {stored}, our node has 0x{}. Freezing the client.",
             hex::encode(ours)
         );
@@ -623,7 +703,7 @@ async fn watch_states(prover: &EnvProver, pk: &EnvProvingKey, w: &mut Watch) -> 
                 receipt.transaction_hash
             );
         }
-        eprintln!("!!! keep: proved our state {level} from {trusted_level}, client frozen");
+        errln!("!!! keep: proved our state {level} from {trusted_level}, client frozen");
         return Ok(true);
     }
     w.from_block = to + 1;

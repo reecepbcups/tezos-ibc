@@ -69,12 +69,12 @@ not_frozen() { ! frozen; }
 check "client not frozen yet" not_frozen
 
 echo "== keeper on the honest chain"
-KEEP_INTERVAL=2s KEEP_MAX_AGE=30s "$BIN" keep >"$KLOG" 2>&1 &
+KEEP_INTERVAL=2s KEEP_MAX_AGE=30s "$BIN" start >"$KLOG" 2>&1 &
 KEEPER=$!
 check "keeper freezes the client" within 120 frozen
 grep "MISBEHAVIOUR\|client frozen" "$KLOG" | head -2 | cut -c1-200 | sed 's/^/    /'
 check "keeper logged the misbehaviour" grep -q "MISBEHAVIOUR: client state $L" "$KLOG"
-warned() { grep -q "warn: client frozen: deliveries paused until admin re-anchor" "$KLOG"; }
+warned() { grep -q "WARN client frozen: deliveries paused until admin re-anchor" "$KLOG"; }
 check "keeper warns frozen and skips" within 30 warned
 check "keeper still alive" kill -0 "$KEEPER"
 check "token $TOKEN_ID not delivered while frozen" sh -c "! cast call $NFT 'ownerOf(uint256)(address)' $TOKEN_ID --rpc-url $ETH_RPC >/dev/null 2>&1"
